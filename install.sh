@@ -217,7 +217,6 @@ install_spark() {
     
     # Spróbuj różne źródła dla Spark
     SPARK_URLS=(
-        "https://downloads.apache.org/spark/spark-$SPARK_VERSION/$SPARK_DIR.tgz"
         "https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/$SPARK_DIR.tgz"
         "https://dlcdn.apache.org/spark/spark-$SPARK_VERSION/$SPARK_DIR.tgz"
     )
