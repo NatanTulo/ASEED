@@ -1,0 +1,47 @@
+# Pliki tymczasowe systemu
+logs/
+pids/
+*.log
+*.pid
+
+# Wirtualne środowisko Python
+venv/
+env/
+.venv/
+
+# Pobrane komponenty
+kafka_*/
+spark-*/
+
+# Pliki Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Pliki IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Pliki systemu operacyjnego
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Pliki tymczasowych danych
+*.tmp
+*.temp
+.cache/
+
+# Archiwa pobranych komponentów
+*.tgz
+*.tar.gz
+*.zip
