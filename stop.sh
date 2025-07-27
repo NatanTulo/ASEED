@@ -32,18 +32,40 @@ stop_process() {
         local pid=$(cat "$pid_file")
         if kill -0 "$pid" 2>/dev/null; then
             log_info "Zatrzymywanie $service_name (PID: $pid)..."
-            kill "$pid"
             
-            # Czekaj na zatrzymanie
-            local count=0
-            while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
-                sleep 1
-                count=$((count + 1))
-            done
-            
-            if kill -0 "$pid" 2>/dev/null; then
-                log_warning "Wymuszenie zatrzymania $service_name..."
-                kill -9 "$pid"
+            # Dla procesów Python/Spark używaj delikatnego zatrzymania
+            if [[ "$service_name" == *"analyzer"* ]] || [[ "$service_name" == *"simulator"* ]]; then
+                # Wyślij SIGTERM i poczekaj dłużej
+                kill -TERM "$pid" 2>/dev/null || true
+                
+                # Czekaj na graceful shutdown
+                local count=0
+                while kill -0 "$pid" 2>/dev/null && [ $count -lt 15 ]; do
+                    sleep 1
+                    count=$((count + 1))
+                done
+                
+                # Jeśli nadal działa, wyślij SIGKILL
+                if kill -0 "$pid" 2>/dev/null; then
+                    log_warning "Wymuszenie zatrzymania $service_name..."
+                    kill -KILL "$pid" 2>/dev/null || true
+                    sleep 2
+                fi
+            else
+                # Dla Kafka/Zookeeper używaj normalnego zatrzymania
+                kill "$pid"
+                
+                # Czekaj na zatrzymanie
+                local count=0
+                while kill -0 "$pid" 2>/dev/null && [ $count -lt 10 ]; do
+                    sleep 1
+                    count=$((count + 1))
+                done
+                
+                if kill -0 "$pid" 2>/dev/null; then
+                    log_warning "Wymuszenie zatrzymania $service_name..."
+                    kill -9 "$pid"
+                fi
             fi
             
             log_success "$service_name zatrzymany"

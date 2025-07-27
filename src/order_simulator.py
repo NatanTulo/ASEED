@@ -2,6 +2,8 @@ import json
 import time
 import random
 import os
+import signal
+import sys
 from datetime import datetime
 from confluent_kafka import Producer
 from faker import Faker
@@ -24,10 +26,20 @@ class OrderSimulator:
         self.fake = Faker()
         self.producer = None
         self.order_counter = 0
+        self.running = True
+        
+        # Ustawienie obsługi sygnałów
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
         
         # Produkty z różnymi prawdopodobieństwami (niektóre produkty będą popularne)
         self.products = self._generate_products()
         self.product_weights = self._generate_product_weights()
+    
+    def _signal_handler(self, signum, frame):
+        """Obsługa sygnałów do graceful shutdown"""
+        logger.info(f"Otrzymano sygnał {signum}. Zatrzymywanie symulatora...")
+        self.running = False
         
     def _generate_products(self):
         """Generuje listę produktów"""
@@ -135,7 +147,7 @@ class OrderSimulator:
         interval = 1.0 / self.orders_per_second
         
         try:
-            while True:
+            while self.running:
                 start_time = time.time()
                 
                 order = self._generate_order()
@@ -153,9 +165,19 @@ class OrderSimulator:
         except Exception as e:
             logger.error(f"Błąd w symulatorze: {e}")
         finally:
-            if self.producer:
+            self._cleanup()
+    
+    def _cleanup(self):
+        """Bezpieczne zamykanie symulatora"""
+        logger.info("Zamykanie symulatora...")
+        if self.producer:
+            try:
+                # Poczekaj na wysłanie wszystkich wiadomości
+                self.producer.flush(timeout=5)
                 self.producer.close()
                 logger.info("Zamknięto połączenie z Kafka")
+            except Exception as e:
+                logger.warning(f"Błąd podczas zamykania producenta Kafka: {e}")
 
 def main():
     # Załaduj konfigurację z pliku .env jeśli istnieje

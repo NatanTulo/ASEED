@@ -1,5 +1,7 @@
 import os
 import time
+import signal
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
@@ -19,6 +21,17 @@ class OrderAnalyzer:
         self.kafka_topic = os.getenv('KAFKA_TOPIC', 'orders')
         
         self.spark = None
+        self.running = True
+        self.queries = []
+        
+        # Ustawienie obsługi sygnałów
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        signal.signal(signal.SIGINT, self._signal_handler)
+    
+    def _signal_handler(self, signum, frame):
+        """Obsługa sygnałów do graceful shutdown"""
+        logger.info(f"Otrzymano sygnał {signum}. Zatrzymywanie analizatora...")
+        self.running = False
         
     def _create_spark_session(self):
         """Tworzy sesję Spark"""
@@ -27,14 +40,23 @@ class OrderAnalyzer:
             self.spark = SparkSession.builder \
                 .appName("OrderAnalysis") \
                 .master(self.spark_master) \
-                .config("spark.sql.adaptive.enabled", "true") \
-                .config("spark.sql.adaptive.coalescePartitions.enabled", "true") \
+                .config("spark.sql.adaptive.enabled", "false") \
+                .config("spark.sql.adaptive.coalescePartitions.enabled", "false") \
                 .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+                .config("spark.sql.streaming.forceDeleteTempCheckpointLocation", "true") \
+                .config("spark.sql.execution.arrow.pyspark.enabled", "false") \
+                .config("spark.sql.streaming.checkpointLocation", "/tmp/spark-checkpoint") \
+                .config("spark.executor.heartbeatInterval", "60s") \
+                .config("spark.network.timeout", "300s") \
+                .config("spark.rpc.askTimeout", "300s") \
                 .config("spark.jars.packages", "org.apache.spark:spark-sql-kafka-0-10_2.12:3.5.0") \
                 .getOrCreate()
             
             self.spark.sparkContext.setLogLevel("WARN")
             logger.info(f"Utworzono sesję Spark: {self.spark_master}")
+            
+            # Utwórz katalog checkpoint jeśli nie istnieje
+            os.makedirs("/tmp/spark-checkpoint", exist_ok=True)
             
         except Exception as e:
             logger.error(f"Błąd tworzenia sesji Spark: {e}")
@@ -218,20 +240,59 @@ class OrderAnalyzer:
         product_query = self._output_top_products(product_analysis)
         category_query = self._output_categories(category_analysis)
         
+        # Zapisz zapytania do listy dla łatwiejszego zarządzania
+        self.queries = [product_query, category_query]
+        
         try:
-            # Czekaj na zakończenie
-            product_query.awaitTermination()
-            category_query.awaitTermination()
-            
+            # Czekaj na zakończenie lub sygnał
+            while self.running and any(q.isActive for q in self.queries):
+                time.sleep(1)
+                
         except KeyboardInterrupt:
             logger.info("Zatrzymywanie analizy...")
-            product_query.stop()
-            category_query.stop()
+            self.running = False
+            
+        except Exception as e:
+            logger.error(f"Błąd podczas przetwarzania: {e}")
+            self.running = False
             
         finally:
+            self._safe_shutdown(*self.queries)
+            self._cleanup_spark()
+    
+    def _safe_shutdown(self, *queries):
+        """Bezpieczne zatrzymanie zapytań"""
+        for query in queries:
+            try:
+                if query and query.isActive:
+                    query.stop()
+                    logger.info("Zatrzymano zapytanie strumieniowe")
+            except Exception as e:
+                logger.warning(f"Błąd podczas zatrzymywania zapytania: {e}")
+    
+    def _cleanup_spark(self):
+        """Bezpieczne zamykanie sesji Spark"""
+        try:
             if self.spark:
+                # Zatrzymaj aktywne strumienie
+                streams = self.spark.streams.active
+                for stream in streams:
+                    try:
+                        stream.stop()
+                    except:
+                        pass
+                
+                # Zamknij sesję Spark
                 self.spark.stop()
                 logger.info("Zamknięto sesję Spark")
+                
+                # Poczekaj chwilę na pełne zamknięcie
+                time.sleep(2)
+                
+        except Exception as e:
+            logger.warning(f"Błąd podczas zamykania Spark: {e}")
+        finally:
+            self.spark = None
 
 def main():
     # Załaduj konfigurację z pliku .env jeśli istnieje

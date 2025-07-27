@@ -176,7 +176,7 @@ check_ports() {
 check_internet() {
     log_check "połączenia internetowego"
     
-    if curl -s --head --request GET https://www.google.com | grep "200 OK" > /dev/null; then
+    if curl -s --head --request GET https://www.google.com | grep -E "200|HTTP" > /dev/null; then
         log_pass
     else
         log_fail "Brak połączenia internetowego (wymagane do pobrania Kafka/Spark)"

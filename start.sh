@@ -25,6 +25,12 @@ log_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
+# Załaduj zmienne środowiskowe z pliku .env
+if [ -f ".env" ]; then
+    export $(grep -v '^#' .env | xargs)
+    log_info "Załadowano konfigurację z .env"
+fi
+
 # Sprawdź czy katalogi Kafka i Spark istnieją
 check_installation() {
     KAFKA_DIR="kafka_2.13-3.9.0"
@@ -57,7 +63,7 @@ start_zookeeper() {
     fi
     
     cd $KAFKA_DIR
-    nohup bin/zookeeper-server-start.sh config/zookeeper.properties > ../logs/zookeeper.log 2>&1 &
+    nohup bin/zookeeper-server-start.sh ./config/zookeeper.properties > ../logs/zookeeper.log 2>&1 &
     ZOOKEEPER_PID=$!
     echo $ZOOKEEPER_PID > ../pids/zookeeper.pid
     cd ..
@@ -112,22 +118,39 @@ start_kafka() {
 create_kafka_topic() {
     log_info "Tworzenie topiku Kafka 'orders'..."
     
+    # Czekaj dodatkowo 5 sekund na pełne uruchomienie Kafka
+    log_info "Czekam na pełną gotowość Kafka..."
+    sleep 5
+    
     cd $KAFKA_DIR
     
     # Sprawdź czy topic już istnieje
-    if bin/kafka-topics.sh --bootstrap-server localhost:9092 --list | grep -q "^orders$"; then
+    if bin/kafka-topics.sh --bootstrap-server localhost:9092 --list 2>/dev/null | grep -q "^orders$"; then
         log_warning "Topic 'orders' już istnieje"
     else
-        bin/kafka-topics.sh --create \
-            --bootstrap-server localhost:9092 \
-            --replication-factor 1 \
-            --partitions 3 \
-            --topic orders
+        # Próbuj utworzyć topic z retry
+        local retries=3
+        local success=false
         
-        if [ $? -eq 0 ]; then
+        for i in $(seq 1 $retries); do
+            log_info "Próba utworzenia topiku (${i}/${retries})..."
+            if bin/kafka-topics.sh --create \
+                --bootstrap-server localhost:9092 \
+                --replication-factor 1 \
+                --partitions 3 \
+                --topic orders 2>/dev/null; then
+                success=true
+                break
+            else
+                log_info "Próba ${i} nieudana, czekam 3 sekundy..."
+                sleep 3
+            fi
+        done
+        
+        if [ "$success" = true ]; then
             log_success "Topic 'orders' utworzony"
         else
-            log_error "Nie udało się utworzyć topiku"
+            log_error "Nie udało się utworzyć topiku po $retries próbach"
             exit 1
         fi
     fi
