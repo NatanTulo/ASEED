@@ -36,6 +36,55 @@
             max-height: 400px;
             overflow-y: auto;
         }
+        .analytics-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .metric-live {
+            font-size: 2rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .product-ranking {
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+        }
+        .product-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 5px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px;
+            border-left: 4px solid #ffd700;
+        }
+        .category-chart {
+            height: 250px;
+        }
+        .trend-indicator {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+        .trend-up { background: #28a745; color: white; }
+        .trend-down { background: #dc3545; color: white; }
+        .trend-stable { background: #6c757d; color: white; }
     </style>
 </head>
 <body>
@@ -54,6 +103,110 @@
     </nav>
 
     <div class="container-fluid py-4">
+        <!-- Analytics Section -->
+        <div class="analytics-section">
+            <div class="row">
+                <div class="col-12">
+                    <h3><i class="fas fa-chart-line"></i> Analiza Zamówień w Czasie Rzeczywistym</h3>
+                </div>
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-live" id="orders-per-minute">0</div>
+                        <small>Zamówienia/min</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-live" id="revenue-per-minute">$0</div>
+                        <small>Przychód/min</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-live" id="avg-order-value">$0</div>
+                        <small>Śr. wartość zamówienia</small>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="text-center">
+                        <div class="metric-live" id="total-orders">0</div>
+                        <small>Łączne zamówienia</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="row mb-4">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-area"></i> Trendy Zamówień (Ostatnie 12h)</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="ordersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-pie"></i> Kategorie Produktów</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="category-chart">
+                            <canvas id="categoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Products and System Status Row -->
+        <div class="row mb-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-trophy"></i> Top 10 Produktów</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="top-products-list">
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-spinner fa-spin"></i> Ładowanie danych...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-server"></i> Status Serwisów</h5>
+                        <div class="btn-group" role="group">
+                            <button class="btn btn-success btn-sm" onclick="executeCommand('start')">
+                                <i class="fas fa-play"></i> Start All
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="executeCommand('stop')">
+                                <i class="fas fa-stop"></i> Stop All
+                            </button>
+                            <button class="btn btn-info btn-sm" onclick="refreshStatus()">
+                                <i class="fas fa-sync"></i> Odśwież
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row" id="services-status">
+                            <!-- Services will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- System Resources Row -->
         <div class="row mb-4">
             <div class="col-md-3">
@@ -102,39 +255,16 @@
 
         <!-- Main Content -->
         <div class="row">
-            <!-- Services Status -->
+            <!-- Logs Section -->
             <div class="col-lg-8">
                 <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-server"></i> Status Serwisów</h5>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-success btn-sm" onclick="executeCommand('start')">
-                                <i class="fas fa-play"></i> Start All
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="executeCommand('stop')">
-                                <i class="fas fa-stop"></i> Stop All
-                            </button>
-                            <button class="btn btn-info btn-sm" onclick="refreshStatus()">
-                                <i class="fas fa-sync"></i> Odśwież
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="services-status">
-                            <!-- Services will be populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Logs Section -->
-                <div class="card mt-4">
                     <div class="card-header">
                         <h5><i class="fas fa-file-alt"></i> Logi Systemu</h5>
                         <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-primary active" onclick="showLogs('data_analyzer')">Analyzer</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('order_simulator')">Simulator</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('kafka')">Kafka</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('zookeeper')">Zookeeper</button>
+                            <button class="btn btn-outline-primary active" onclick="showLogs('data_analyzer', this)">Analyzer</button>
+                            <button class="btn btn-outline-primary" onclick="showLogs('order_simulator', this)">Simulator</button>
+                            <button class="btn btn-outline-primary" onclick="showLogs('kafka', this)">Kafka</button>
+                            <button class="btn btn-outline-primary" onclick="showLogs('zookeeper', this)">Zookeeper</button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -225,12 +355,31 @@
         // WebSocket connection
         const socket = io();
         let currentLogsService = 'data_analyzer';
+        
+        // Charts
+        let ordersChart = null;
+        let categoryChart = null;
 
         // Initialize dashboard
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('Dashboard initializing...');
+            
+            // Check if required elements exist
+            const logsContainer = document.getElementById('logs-container');
+            if (!logsContainer) {
+                console.error('logs-container element not found in DOM!');
+            }
+            
             loadConfiguration();
             refreshStatus();
-            showLogs(currentLogsService);
+            
+            // Only load logs if container exists
+            if (logsContainer && currentLogsService) {
+                showLogs(currentLogsService);
+            }
+            
+            initializeCharts();
+            loadAnalytics();
             
             // Setup config form
             document.getElementById('config-form').addEventListener('submit', saveConfiguration);
@@ -244,6 +393,173 @@
         socket.on('status_update', function(data) {
             updateStatus(data);
         });
+        
+        socket.on('analytics_update', function(data) {
+            updateAnalytics(data);
+        });
+
+        // Initialize Charts
+        function initializeCharts() {
+            // Orders Trend Chart
+            const ordersCtx = document.getElementById('ordersChart').getContext('2d');
+            ordersChart = new Chart(ordersCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Zamówienia',
+                        data: [],
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1,
+                        fill: true
+                    }, {
+                        label: 'Przychód ($)',
+                        data: [],
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.1,
+                        fill: true,
+                        yAxisID: 'y1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'white' }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            ticks: { color: 'white' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            ticks: { color: 'white' },
+                            grid: { drawOnChartArea: false }
+                        }
+                    }
+                }
+            });
+
+            // Category Pie Chart
+            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+            categoryChart = new Chart(categoryCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'black' }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Load analytics data
+        function loadAnalytics() {
+            fetch('/api/analytics')
+                .then(response => response.json())
+                .then(data => updateAnalytics(data))
+                .catch(error => console.error('Error loading analytics:', error));
+        }
+
+        // Update analytics display
+        function updateAnalytics(data) {
+            // Update real-time metrics
+            const metrics = data.real_time_metrics;
+            document.getElementById('orders-per-minute').textContent = metrics.orders_per_minute;
+            document.getElementById('revenue-per-minute').textContent = `$${metrics.revenue_per_minute}`;
+            document.getElementById('avg-order-value').textContent = `$${metrics.avg_order_value}`;
+            document.getElementById('total-orders').textContent = metrics.total_orders;
+
+            // Update top products
+            updateTopProducts(data.top_products);
+
+            // Update charts
+            updateOrdersChart(data.hourly_trends);
+            updateCategoryChart(data.category_breakdown);
+        }
+
+        // Update top products list
+        function updateTopProducts(products) {
+            const container = document.getElementById('top-products-list');
+            
+            if (products.length === 0) {
+                container.innerHTML = '<div class="text-center text-muted py-4">Brak danych o produktach</div>';
+                return;
+            }
+
+            let html = '';
+            products.forEach((product, index) => {
+                const rank = index + 1;
+                const medal = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `${rank}.`;
+                html += `
+                    <div class="product-item">
+                        <div>
+                            <strong>${medal} ${product.name}</strong><br>
+                            <small class="text-muted">${product.category}</small>
+                        </div>
+                        <div class="text-end">
+                            <div><strong>${product.count}</strong> szt.</div>
+                            <div class="text-success">$${product.revenue}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        // Update orders chart
+        function updateOrdersChart(hourlyData) {
+            if (!ordersChart || !hourlyData) return;
+
+            const labels = hourlyData.map(item => item.time);
+            const orders = hourlyData.map(item => item.orders);
+            const revenue = hourlyData.map(item => item.revenue);
+
+            ordersChart.data.labels = labels;
+            ordersChart.data.datasets[0].data = orders;
+            ordersChart.data.datasets[1].data = revenue;
+            ordersChart.update('none');
+        }
+
+        // Update category chart
+        function updateCategoryChart(categoryData) {
+            if (!categoryChart || !categoryData) return;
+
+            const labels = categoryData.map(item => item.category);
+            const data = categoryData.map(item => item.count);
+
+            categoryChart.data.labels = labels;
+            categoryChart.data.datasets[0].data = data;
+            categoryChart.update('none');
+        }
 
         // Load configuration
         function loadConfiguration() {
@@ -358,28 +674,36 @@
         }
 
         // Show logs for service
-        function showLogs(serviceName) {
+        function showLogs(serviceName, element = null) {
             currentLogsService = serviceName;
             
             // Update active button
             document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
+            if (element && element.classList) {
+                element.classList.add('active');
+            }
             
             fetch(`/api/logs/${serviceName}?lines=100`)
                 .then(response => response.json())
                 .then(data => {
                     const container = document.getElementById('logs-container');
-                    if (data.logs.length === 0) {
+                    if (!container) {
+                        console.error('logs-container element not found');
+                        return;
+                    }
+                    if (data.logs && data.logs.length === 0) {
                         container.innerHTML = '<div class="text-muted">Brak logów dla tego serwisu</div>';
-                    } else {
+                    } else if (data.logs) {
                         container.innerHTML = data.logs.join('<br>');
                         container.scrollTop = container.scrollHeight;
                     }
                 })
                 .catch(error => {
-                    console.error('Error fetching logs:', error);
-                    document.getElementById('logs-container').innerHTML = 
-                        '<div class="text-danger">Błąd ładowania logów</div>';
+                    console.error('Error loading logs:', error);
+                    const container = document.getElementById('logs-container');
+                    if (container) {
+                        container.innerHTML = '<div class="text-danger">Błąd ładowania logów</div>';
+                    }
                 });
         }
 
@@ -440,10 +764,16 @@
 
         // Auto-refresh logs every 10 seconds
         setInterval(() => {
-            if (currentLogsService) {
+            if (currentLogsService && document.getElementById('logs-container')) {
+                console.log('Auto-refreshing logs for:', currentLogsService);
                 showLogs(currentLogsService);
             }
         }, 10000);
+        
+        // Auto-refresh analytics every 5 seconds
+        setInterval(() => {
+            loadAnalytics();
+        }, 5000);
     </script>
 </body>
 </html>

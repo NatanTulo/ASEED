@@ -1,4 +1,18 @@
-# Online Store Order Analysis
+# Online Store Order A![Dashboard Preview](docs/dashboard-preview.png)
+
+## 🧪 Generator danych testowych
+
+Do testowania wizualizacji dostępny jest generator przykładowych zamówień:
+
+```bash
+# Generuj dane przez 2 minuty (6 zamówień/min)
+./generate-test-data.sh
+
+# Lub z custom parametrami
+./generate-test-data.sh 5 10  # 5 minut, 10 zamówień/min
+```
+
+## 🏗️ Architekturaysis
 
 Projekt symulujący sklep internetowy wysyłający dane o zamówieniach przez Kafka, które są następnie analizowane przez Apache Spark w celu identyfikacji najlepiej sprzedających się produktów.
 
@@ -17,6 +31,8 @@ Projekt zawiera nowoczesny **interfejs webowy** do zarządzania i monitorowania 
 - **📝 Podgląd logów** - Real-time logi dla każdego serwisu
 - **⚙️ Konfiguracja** - Edycja wszystkich parametrów przez GUI
 - **💻 Komendy systemowe** - Instalacja, sprawdzenie wymagań przez interfejs
+- **📈 Wizualizacje danych** - Wykresy zamówień, top produkty, trendy kategorii
+- **🧪 Generator danych testowych** - Symulacja ruchu dla testów dashboard
 
 ![Dashboard Preview](docs/dashboard-preview.png)
 
@@ -76,40 +92,51 @@ cd ASEED
 ./quickstart.sh
 ```
 
-## 🚀 Krok po kroku
+## 🎯 Demo i testowanie
 
-### 1. Sprawdź wymagania systemu
+### 🌐 Web Dashboard z wizualizacjami (NOWOŚĆ!):
 ```bash
-./check-requirements.sh
+# Kompletna demonstracja z interaktywnymi wykresami
+./demo-full.sh
+```
+**Funkcje dashboardu:**
+- 📊 **Real-time analytics** - zamówienia i przychody na żywo
+- 📈 **Wykresy trendów** - sprzedaż w czasie (Chart.js)
+- 🥧 **Wykres kategorii** - podział produktów (doughnut chart)
+- 🏆 **TOP 10 produktów** - ranking najpopularniejszych
+- 🖥️ **System monitoring** - CPU, RAM, disk
+- 🎛️ **Sterowanie systemem** - start/stop usług z poziomu web
+
+### Szybkie demo (konsola):
+```bash
+./demo.sh
 ```
 
-### 2. Zainstaluj wszystkie zależności
+### Krok po kroku:
 ```bash
-./install.sh
-```
-
-### 3. Uruchom system
-```bash
+# 1. Uruchom wszystkie usługi
 ./start.sh
+
+# 2. Opcja A: Web Dashboard (zalecane)
+./start-dashboard.sh       # Dostępny: http://localhost:5000
+
+# 2. Opcja B: Generuj przykładowe zamówienia (konsola)
+python3 src/order_simulator.py
+
+# 3. W innym terminalu - analizuj dane
+python3 src/data_analyzer.py
 ```
 
-### 4. Monitoruj działanie
+### Dane testowe dla wizualizacji:
 ```bash
-./monitor.sh
-```
+# Podstawowe (2 min, 6 zamówień/min)
+./generate-test-data.sh
 
-### 5. Zatrzymaj system
-```bash
-./stop.sh
-```
+# Intensywne (5 min, 20 zamówień/min)  
+./generate-test-data.sh 5 20
 
-### Alternatywnie - użyj Makefile
-```bash
-make check     # sprawdź wymagania
-make install   # zainstaluj zależności  
-make start     # uruchom system
-make monitor   # monitoruj
-make stop      # zatrzymaj
+# Długie (10 min, 2 zamówienia/min)
+./generate-test-data.sh 10 2
 ```
 
 ## 📊 Co zobaczysz

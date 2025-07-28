@@ -16,6 +16,7 @@ help:
 	@echo "  make status    - Pokaż status procesów"
 	@echo "  make logs      - Pokaż ostatnie logi"
 	@echo "  make clean     - Wyczyść logi i pliki tymczasowe"
+	@echo "  make test-data - Generuj dane testowe dla dashboard"
 	@echo "  make quickstart - Pełna instalacja + uruchomienie"
 	@echo ""
 	@echo "Przykłady:"
@@ -112,6 +113,9 @@ restart: stop start
 # Aliasy dla dashboard
 web: dashboard
 gui: dashboard
+test-data:
+	@echo "🧪 Generowanie danych testowych..."
+	./generate-test-data.sh
 
 # Weryfikacja instalacji
 verify: status
