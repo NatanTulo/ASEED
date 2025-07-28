@@ -1,4 +1,4 @@
-.PHONY: help check install start stop monitor clean status logs
+.PHONY: help check install start stop monitor clean status logs dashboard
 
 # Domyślna komenda
 help:
@@ -7,6 +7,7 @@ help:
 	@echo ""
 	@echo "Dostępne komendy:"
 	@echo ""
+	@echo "  make dashboard - Uruchom Web Dashboard (ZALECANE)"
 	@echo "  make check     - Sprawdź wymagania systemu"
 	@echo "  make install   - Zainstaluj wszystkie zależności"
 	@echo "  make start     - Uruchom system"
@@ -18,6 +19,7 @@ help:
 	@echo "  make quickstart - Pełna instalacja + uruchomienie"
 	@echo ""
 	@echo "Przykłady:"
+	@echo "  make install dashboard  # Zainstaluj i uruchom Web GUI"
 	@echo "  make quickstart  # Szybki start dla nowych użytkowników"
 	@echo "  make install start monitor  # Instaluj, uruchom i monitoruj"
 
@@ -98,9 +100,18 @@ quickstart:
 	@echo "🚀 Szybki start systemu..."
 	./quickstart.sh
 
+# Uruchom Web Dashboard
+dashboard:
+	@echo "🌐 Uruchamianie Web Dashboard..."
+	./start-dashboard.sh
+
 # Restart systemu
 restart: stop start
 	@echo "🔄 System zrestartowany"
+
+# Aliasy dla dashboard
+web: dashboard
+gui: dashboard
 
 # Weryfikacja instalacji
 verify: status

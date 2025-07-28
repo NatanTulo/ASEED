@@ -126,6 +126,14 @@ demo_step_4() {
     echo ""
     echo "System jest teraz uruchomiony! Oto co możesz zrobić:"
     echo ""
+    echo -e "${GREEN}🌐 NOWOŚĆ - Web Dashboard (ZALECANE):${NC}"
+    echo "   ./start-dashboard.sh"
+    echo "   Następnie otwórz: http://localhost:5000"
+    echo "   • Monitorowanie w czasie rzeczywistym"
+    echo "   • Zarządzanie serwisami przez GUI"
+    echo "   • Podgląd logów i konfiguracji"
+    echo ""
+    echo -e "${BLUE}Tradycyjne monitorowanie:${NC}"
     echo "1. Obejrzeć analizy w czasie rzeczywistym:"
     echo "   tail -f logs/data_analyzer.log"
     echo ""
@@ -140,6 +148,18 @@ demo_step_4() {
     echo ""
     
     wait_for_key
+    
+    # Oferuj użytkownikowi wybór
+    echo -e "${YELLOW}Czy chcesz uruchomić Web Dashboard teraz? (y/n)${NC}"
+    read -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo "Uruchamianie Web Dashboard..."
+        echo "Otwórz http://localhost:5000 w przeglądarce"
+        echo "Naciśnij Ctrl+C w tym terminalu aby zatrzymać dashboard"
+        ./start-dashboard.sh
+        return
+    fi
     
     echo "Sprawdzamy status systemu..."
     echo ""

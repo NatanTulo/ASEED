@@ -2,7 +2,25 @@
 
 Projekt symulujący sklep internetowy wysyłający dane o zamówieniach przez Kafka, które są następnie analizowane przez Apache Spark w celu identyfikacji najlepiej sprzedających się produktów.
 
-## 🏗️ Architektura
+## � Web Dashboard
+
+Projekt zawiera nowoczesny **interfejs webowy** do zarządzania i monitorowania systemu:
+
+```bash
+./start-dashboard.sh
+# Otwórz: http://localhost:5000
+```
+
+### Funkcjonalności Dashboard:
+- **📊 Monitorowanie w czasie rzeczywistym** - CPU, RAM, Dysk, Load Average
+- **🔧 Zarządzanie serwisami** - Start/Stop wszystkich komponentów jednym kliknięciem  
+- **📝 Podgląd logów** - Real-time logi dla każdego serwisu
+- **⚙️ Konfiguracja** - Edycja wszystkich parametrów przez GUI
+- **💻 Komendy systemowe** - Instalacja, sprawdzenie wymagań przez interfejs
+
+![Dashboard Preview](docs/dashboard-preview.png)
+
+## �🏗️ Architektura
 
 - **Apache Kafka + Zookeeper**: System kolejek wiadomości do strumieniowego przesyłania zamówień
 - **Apache Spark**: Silnik do analizy strumieniowej danych w trybie lokalnym
@@ -24,7 +42,21 @@ Projekt symulujący sklep internetowy wysyłający dane o zamówieniach przez Ka
 
 ## 🚀 Szybki start
 
-### Metoda 1: Interaktywne demo (ZALECANE dla nowych użytkowników)
+### Metoda 1: Web Dashboard (NOWA - ZALECANE!)
+```bash
+# Pobierz projekt
+git clone https://github.com/NatanTulo/ASEED.git
+cd ASEED
+
+# Zainstaluj zależności
+./install.sh
+
+# Uruchom Web Dashboard
+./start-dashboard.sh
+```
+**Następnie otwórz:** http://localhost:5000
+
+### Metoda 2: Interaktywne demo
 ```bash
 # Pobierz projekt
 git clone https://github.com/NatanTulo/ASEED.git
@@ -34,7 +66,7 @@ cd ASEED
 ./demo.sh
 ```
 
-### Metoda 2: Automatyczna instalacja (jedna komenda)
+### Metoda 3: Automatyczna instalacja (jedna komenda)
 ```bash
 # Pobierz projekt
 git clone https://github.com/NatanTulo/ASEED.git

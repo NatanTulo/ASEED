@@ -153,6 +153,11 @@ install_python_packages() {
     pip install kafka-python==2.0.2
     pip install faker==19.6.2
     
+    # Pakiety dla Web Dashboard
+    pip install flask==2.3.3
+    pip install flask-socketio==5.3.4
+    pip install psutil==5.9.5
+    
     log_success "Pakiety Python zainstalowane"
 }
 
@@ -306,9 +311,13 @@ main() {
     log_success "🎉 Instalacja zakończona pomyślnie!"
     echo ""
     log_info "Aby uruchomić projekt:"
-    log_info "1. ./start.sh  - uruchom wszystkie serwisy"
-    log_info "2. ./monitor.sh - monitoruj działanie"
-    log_info "3. ./stop.sh - zatrzymaj serwisy"
+    log_info "1. ./start-dashboard.sh - uruchom Web Dashboard (ZALECANE)"
+    log_info "   Następnie otwórz: http://localhost:5000"
+    log_info ""
+    log_info "LUB tradycyjnie:"
+    log_info "2. ./start.sh  - uruchom wszystkie serwisy"
+    log_info "3. ./monitor.sh - monitoruj działanie"
+    log_info "4. ./stop.sh - zatrzymaj serwisy"
     echo ""
     log_warning "Uwaga: Pierwsze uruchomienie może potrwać kilka minut"
 }
