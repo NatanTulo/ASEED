@@ -179,6 +179,74 @@ class OrderAnalyzer:
         
         return category_analysis
     
+    def _analyze_customer_segments(self, orders_df):
+        """Advanced analysis: Customer segment performance"""
+        return orders_df \
+            .filter(col("customer_segment").isNotNull()) \
+            .groupBy(
+                window(col("timestamp_parsed"), "30 seconds"),
+                col("customer_segment")
+            ) \
+            .agg(
+                count("*").alias("order_count"),
+                sum("quantity").alias("total_quantity"),
+                sum("total_value").alias("total_revenue"),
+                avg("total_value").alias("avg_order_value"),
+                countDistinct("customer_id").alias("unique_customers")
+            ) \
+            .select(
+                col("window.start").alias("window_start"),
+                col("window.end").alias("window_end"),
+                col("customer_segment"),
+                col("order_count"),
+                col("total_quantity"),
+                col("total_revenue"),
+                col("avg_order_value"),
+                col("unique_customers")
+            )
+    
+    def _analyze_promotions_effectiveness(self, orders_df):
+        """Advanced analysis: Promotion effectiveness"""
+        return orders_df \
+            .filter(col("promotion_applied").isNotNull()) \
+            .groupBy(
+                window(col("timestamp_parsed"), "1 minute"),
+                col("promotion_applied")
+            ) \
+            .agg(
+                count("*").alias("order_count"),
+                sum("total_value").alias("total_revenue"),
+                avg("total_value").alias("avg_order_value")
+            ) \
+            .select(
+                col("window.start").alias("window_start"),
+                col("window.end").alias("window_end"),
+                col("promotion_applied"),
+                col("order_count"),
+                col("total_revenue"),
+                col("avg_order_value")
+            )
+    
+    def _analyze_hourly_trends(self, orders_df):
+        """Advanced analysis: Hourly sales trends"""
+        return orders_df \
+            .withColumn("hour", hour(col("timestamp_parsed"))) \
+            .groupBy(
+                window(col("timestamp_parsed"), "1 minute"),
+                col("hour")
+            ) \
+            .agg(
+                count("*").alias("order_count"),
+                sum("total_value").alias("total_revenue")
+            ) \
+            .select(
+                col("window.start").alias("window_start"), 
+                col("window.end").alias("window_end"),
+                col("hour"),
+                col("order_count"),
+                col("total_revenue")
+            )
+    
     def _output_top_products(self, analysis_df):
         """Wyprowadza wyniki analizy produktów"""
         
@@ -228,7 +296,7 @@ class OrderAnalyzer:
         
         query = analysis_df.writeStream \
             .foreachBatch(process_batch) \
-            .outputMode("complete") \
+            .outputMode("append") \
             .trigger(processingTime='10 seconds') \
             .start()
         
@@ -277,8 +345,83 @@ class OrderAnalyzer:
         
         query = analysis_df.writeStream \
             .foreachBatch(process_batch) \
-            .outputMode("complete") \
+            .outputMode("append") \
             .trigger(processingTime='15 seconds') \
+            .start()
+        
+        return query
+    
+    def _output_customer_segments(self, analysis_df):
+        """Output customer segment analysis"""
+        def process_batch(batch_df, batch_id):
+            if batch_df.count() > 0:
+                segments = batch_df.collect()
+                
+                dashboard_data = []
+                for row in segments:
+                    dashboard_data.append({
+                        'segment': row['customer_segment'],
+                        'order_count': row['order_count'],
+                        'total_revenue': float(row['total_revenue']),
+                        'avg_order_value': float(row['avg_order_value']),
+                        'unique_customers': row['unique_customers'],
+                        'window_start': row['window_start'].isoformat(),
+                        'window_end': row['window_end'].isoformat()
+                    })
+                
+                self._send_to_dashboard('customer_segments', {
+                    'batch_id': batch_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'segments': dashboard_data
+                })
+                
+                logger.info(f"📊 Customer Segments Analysis - Batch {batch_id}")
+                for row in segments:
+                    logger.info(f"  {row['customer_segment']}: {row['order_count']} orders, "
+                              f"${row['total_revenue']:.2f} revenue, "
+                              f"${row['avg_order_value']:.2f} AOV")
+        
+        query = analysis_df.writeStream \
+            .foreachBatch(process_batch) \
+            .outputMode("append") \
+            .trigger(processingTime='20 seconds') \
+            .start()
+        
+        return query
+    
+    def _output_promotions_analysis(self, analysis_df):
+        """Output promotions effectiveness analysis"""
+        def process_batch(batch_df, batch_id):
+            if batch_df.count() > 0:
+                promos = batch_df.collect()
+                
+                dashboard_data = []
+                for row in promos:
+                    dashboard_data.append({
+                        'promotion_applied': row['promotion_applied'],
+                        'order_count': row['order_count'],
+                        'total_revenue': float(row['total_revenue']),
+                        'avg_order_value': float(row['avg_order_value']),
+                        'window_start': row['window_start'].isoformat(),
+                        'window_end': row['window_end'].isoformat()
+                    })
+                
+                self._send_to_dashboard('promotions', {
+                    'batch_id': batch_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'promotions': dashboard_data
+                })
+                
+                logger.info(f"🎯 Promotions Analysis - Batch {batch_id}")
+                for row in promos:
+                    promo_text = "WITH promotions" if row['promotion_applied'] else "WITHOUT promotions"
+                    logger.info(f"  {promo_text}: {row['order_count']} orders, "
+                              f"${row['avg_order_value']:.2f} AOV")
+        
+        query = analysis_df.writeStream \
+            .foreachBatch(process_batch) \
+            .outputMode("append") \
+            .trigger(processingTime='25 seconds') \
             .start()
         
         return query
@@ -344,6 +487,10 @@ class OrderAnalyzer:
         raw_orders_query = self._output_raw_orders(orders_df)
         product_query = self._output_top_products(product_analysis)
         category_query = self._output_categories(category_analysis)
+        
+        # Zaawansowane analizy - tymczasowo wyłączone dla stabilności
+        # customer_segments_query = self._output_customer_segments(orders_df)
+        # promotions_analysis_query = self._output_promotions_analysis(orders_df)
         
         # Zapisz zapytania do listy dla łatwiejszego zarządzania
         self.queries = [raw_orders_query, product_query, category_query]

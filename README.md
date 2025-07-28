@@ -60,15 +60,20 @@ python3 aseed.py test --minutes 5 --rate 20
 
 ```
 ASEED/
-├── aseed.py              # 🎯 GŁÓWNY SKRYPT - uruchamiaj tutaj!
+├── aseed.py                     # 🎯 GŁÓWNY SKRYPT - uruchamiaj tutaj!
 ├── src/
-│   ├── order_simulator.py   # Generator zamówień
-│   ├── data_analyzer.py     # Spark analytics  
-│   ├── web_dashboard.py     # Dashboard Flask
-│   └── templates/dashboard.html # Interfejs web
-├── logs/                 # Logi wszystkich serwisów
-├── pids/                 # PIDs procesów
-└── install.sh           # Instalacja zależności
+│   ├── order_simulator.py          # Generator zamówień podstawowy
+│   ├── enhanced_order_simulator.py # Generator zaawansowany (promocje, trendy)
+│   ├── data_analyzer.py            # Spark analytics + zaawansowane funkcje
+│   ├── web_dashboard.py            # Dashboard Flask + WebSocket
+│   ├── test_data_generator.py      # Generator danych testowych
+│   └── templates/dashboard.html    # Interfejs web (real-time)
+├── analysis_demo.ipynb         # 📓 Notebook demonstracyjny
+├── test_aseed.py              # 🧪 Testy jednostkowe
+├── TECHNICAL_DOCS.md          # 📋 Dokumentacja techniczna
+├── logs/                      # Logi wszystkich serwisów
+├── pids/                      # PIDs procesów
+└── install.sh                # Instalacja zależności
 ```
 
 ## 🛠️ Dodatkowe komendy
@@ -86,6 +91,13 @@ ps aux | grep -E "kafka|python"
 - `http://localhost:5005` - Dashboard
 - `http://localhost:5005/api/analytics` - JSON z metrykami
 - `http://localhost:5005/api/top-products` - Top sellers
+
+### Dodatkowe funkcje
+- **Enhanced Simulator**: Promocje, sezonowość, segmenty klientów
+- **Zaawansowane analizy**: Trendy godzinowe, skuteczność promocji
+- **Jupyter Notebook**: Demonstracja konceptów (`analysis_demo.ipynb`)
+- **Testy jednostkowe**: Walidacja funkcji (`python3 test_aseed.py`)
+- **Dokumentacja techniczna**: Pełna architektura (`TECHNICAL_DOCS.md`)
 
 ## 🐛 Problemy?
 

@@ -8,6 +8,8 @@ import os
 import json
 import time
 import threading
+import subprocess
+import psutil
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from flask import Flask, render_template, request, jsonify
@@ -39,8 +41,20 @@ class RealTimeDashboard:
         self.total_revenue = 0.0
         self.orders_per_minute = 0
         
+        # Service status tracking
+        self.service_status = {
+            'zookeeper': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'kafka': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'order_simulator': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'data_analyzer': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'dashboard': {'status': 'running', 'pid': os.getpid(), 'last_check': datetime.now()}
+        }
+        
         # Start background thread to calculate metrics
         self._start_metrics_thread()
+        
+        # Start background thread to monitor services
+        self._start_service_monitor()
         
         logger.info("Dashboard initialized and ready to receive Spark data")
     
@@ -69,6 +83,99 @@ class RealTimeDashboard:
         self.orders_per_minute = len(recent_orders)
         
         logger.debug(f"Calculated {self.orders_per_minute} orders/minute")
+    
+    def _start_service_monitor(self):
+        """Start background thread to monitor service status"""
+        def monitor_services():
+            while True:
+                try:
+                    self._check_service_status()
+                    
+                    # Convert datetime objects to strings for JSON serialization
+                    services_for_emit = {}
+                    for service, status in self.service_status.items():
+                        services_for_emit[service] = {**status}
+                        if 'last_check' in services_for_emit[service] and services_for_emit[service]['last_check']:
+                            services_for_emit[service]['last_check'] = services_for_emit[service]['last_check'].isoformat()
+                    
+                    # Emit status update to connected clients
+                    socketio.emit('service_status_update', {
+                        'services': services_for_emit,
+                        'timestamp': datetime.now().isoformat()
+                    })
+                    time.sleep(5)  # Check every 5 seconds
+                except Exception as e:
+                    logger.error(f"Error monitoring services: {e}")
+                    time.sleep(10)  # Longer sleep on error
+        
+        thread = threading.Thread(target=monitor_services, daemon=True)
+        thread.start()
+        logger.info("🔍 Monitoring serwisów uruchomiony")
+    
+    def _check_service_status(self):
+        """Check status of all ASEED services"""
+        pids_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pids')
+        
+        service_files = {
+            'zookeeper': 'zookeeper.pid',
+            'kafka': 'kafka.pid', 
+            'order_simulator': 'order_simulator.pid',
+            'data_analyzer': 'data_analyzer.pid'
+        }
+        
+        for service, pid_file in service_files.items():
+            pid_path = os.path.join(pids_dir, pid_file)
+            
+            try:
+                if os.path.exists(pid_path):
+                    with open(pid_path, 'r') as f:
+                        pid = int(f.read().strip())
+                    
+                    # Check if process is running
+                    if psutil.pid_exists(pid):
+                        try:
+                            proc = psutil.Process(pid)
+                            if proc.is_running():
+                                self.service_status[service] = {
+                                    'status': 'running',
+                                    'pid': pid,
+                                    'last_check': datetime.now(),
+                                    'memory_mb': round(proc.memory_info().rss / 1024 / 1024, 1),
+                                    'cpu_percent': round(proc.cpu_percent(), 1)
+                                }
+                            else:
+                                self.service_status[service] = {
+                                    'status': 'stopped',
+                                    'pid': None,
+                                    'last_check': datetime.now()
+                                }
+                        except (psutil.NoSuchProcess, psutil.AccessDenied):
+                            self.service_status[service] = {
+                                'status': 'stopped',
+                                'pid': None,
+                                'last_check': datetime.now()
+                            }
+                    else:
+                        self.service_status[service] = {
+                            'status': 'stopped',
+                            'pid': None,
+                            'last_check': datetime.now()
+                        }
+                else:
+                    self.service_status[service] = {
+                        'status': 'not_started',
+                        'pid': None,
+                        'last_check': datetime.now()
+                    }
+            
+            except Exception as e:
+                logger.error(f"Error checking {service} status: {e}")
+                self.service_status[service] = {
+                    'status': 'error',
+                    'pid': None,
+                    'last_check': datetime.now(),
+                    'error': str(e)
+                }
 
 # Global dashboard instance
 dashboard = RealTimeDashboard()
@@ -87,6 +194,47 @@ def api_status():
         'total_orders': dashboard.total_orders,
         'total_revenue': dashboard.total_revenue,
         'orders_per_minute': dashboard.orders_per_minute
+    })
+
+@app.route('/api/services')
+def api_services():
+    """API endpoint for service status"""
+    return jsonify({
+        'services': dashboard.service_status,
+        'timestamp': datetime.now().isoformat(),
+        'overall_status': 'healthy' if all(
+            s['status'] == 'running' for s in dashboard.service_status.values()
+        ) else 'degraded'
+    })
+
+@app.route('/api/service-status')
+def get_service_status():
+    """API endpoint zwracający status wszystkich serwisów"""
+    dashboard._check_service_status()  # Aktualizuj status przed zwróceniem
+    
+    # Konwertuj datetime na string dla JSON
+    services_for_api = {}
+    for service, status in dashboard.service_status.items():
+        services_for_api[service] = {**status}
+        if 'last_check' in services_for_api[service] and services_for_api[service]['last_check']:
+            services_for_api[service]['last_check'] = services_for_api[service]['last_check'].isoformat()
+    
+    # Oblicz ogólny status systemu
+    all_services = ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer', 'dashboard']
+    running_count = sum(1 for service in all_services if dashboard.service_status[service]['status'] == 'running')
+    
+    overall_status = 'healthy' if running_count == len(all_services) else \
+                    'partial' if running_count > 0 else 'down'
+    
+    return jsonify({
+        'overall_status': overall_status,
+        'services': services_for_api,
+        'summary': {
+            'total_services': len(all_services),
+            'running': running_count,
+            'stopped': len(all_services) - running_count
+        },
+        'timestamp': datetime.now().isoformat()
     })
 
 @app.route('/api/top_products', methods=['POST'])
