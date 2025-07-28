@@ -22,6 +22,7 @@ class ASEEDManager:
         self.pids_dir = self.project_root / 'pids'
         self.logs_dir = self.project_root / 'logs'
         self.kafka_dir = self.project_root / 'kafka_2.13-3.9.0'
+        self.venv_python = self.project_root / 'venv' / 'bin' / 'python3'
         
         # Create directories if they don't exist
         self.pids_dir.mkdir(exist_ok=True)
@@ -46,17 +47,17 @@ class ASEEDManager:
                 'wait_time': 10
             },
             'order_simulator': {
-                'command': ['python3', 'src/order_simulator.py'],
+                'command': [str(self.venv_python), 'src/order_simulator.py'],
                 'log_file': 'order_simulator.log',
                 'wait_time': 2
             },
             'data_analyzer': {
-                'command': ['python3', 'src/data_analyzer.py'],
+                'command': [str(self.venv_python), 'src/data_analyzer.py'],
                 'log_file': 'data_analyzer.log',
                 'wait_time': 15
             },
             'dashboard': {
-                'command': ['python3', 'src/web_dashboard.py'],
+                'command': [str(self.venv_python), 'src/web_dashboard.py'],
                 'log_file': 'dashboard.log',
                 'wait_time': 3
             }
@@ -166,14 +167,14 @@ class ASEEDManager:
                 return False
         
         print("\n✅ 🎉 System ASEED uruchomiony pomyślnie!")
-        print("\n📊 Dashboard dostępny na: http://localhost:5000")
+        print("\n📊 Dashboard dostępny na: http://localhost:5005")
         print("📝 Logi: tail -f logs/*.log")
-        print("🛑 Zatrzymanie: python aseed.py stop")
+        print("🛑 Zatrzymanie: python3 aseed.py stop")
         return True
 
     def _check_and_cleanup_ports(self):
         """Sprawdź i wyczyść zajęte porty"""
-        ports_to_check = [2181, 9092, 5000]  # Zookeeper, Kafka, Dashboard
+        ports_to_check = [2181, 9092, 5005]  # Zookeeper, Kafka, Dashboard
         
         for port in ports_to_check:
             try:
@@ -269,10 +270,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Przykłady użycia:
-  python aseed.py start          # Uruchom cały system
-  python aseed.py stop           # Zatrzymaj system
-  python aseed.py status         # Pokaż status
-  python aseed.py test --minutes 5 --rate 20  # Generuj dane testowe
+  python3 aseed.py start          # Uruchom cały system
+  python3 aseed.py stop           # Zatrzymaj system
+  python3 aseed.py status         # Pokaż status
+  python3 aseed.py test --minutes 5 --rate 20  # Generuj dane testowe
         """
     )
     

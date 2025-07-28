@@ -3,467 +3,222 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ASEED - Order Analysis Dashboard</title>
+    <title>Real-time Spark Streaming Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <style>
-        .status-running { color: #28a745; }
-        .status-stopped { color: #dc3545; }
-        .status-error { color: #ffc107; }
-        .log-container { 
-            height: 300px; 
-            overflow-y: auto; 
-            background: #f8f9fa; 
-            border: 1px solid #dee2e6; 
-            padding: 10px;
-            font-family: 'Courier New', monospace;
-            font-size: 12px;
-        }
-        .metric-card { transition: all 0.3s ease; }
-        .metric-card:hover { transform: translateY(-5px); }
-        .navbar-brand { font-weight: bold; }
-        .service-card { margin-bottom: 20px; }
-        .progress-bar-animated { animation: progress-bar-stripes 1s linear infinite; }
-        .config-form { background: #f8f9fa; padding: 20px; border-radius: 8px; }
-        .command-output { 
-            background: #212529; 
-            color: #fff; 
-            padding: 15px; 
-            border-radius: 5px; 
-            font-family: 'Courier New', monospace;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-        .analytics-section {
+        .metric-card {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            border-radius: 15px;
+            border-radius: 10px;
             padding: 20px;
             margin-bottom: 20px;
         }
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .metric-label {
+            font-size: 0.9rem;
+            opacity: 0.8;
+        }
         .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            height: 420px !important; /* Fixed height */
+            min-height: 420px !important;
+            max-height: 420px !important;
+            overflow: hidden; /* Prevent overflow */
+        }
+        .chart-wrapper {
             position: relative;
-            height: 300px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
+            height: 350px !important;
+            width: 100% !important;
+            overflow: hidden;
         }
-        .metric-live {
-            font-size: 2rem;
-            font-weight: bold;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        .chart-canvas {
+            height: 350px !important;
+            max-height: 350px !important;
+            width: 100% !important;
+            max-width: 100% !important;
         }
-        .product-ranking {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-            padding: 15px;
-            margin: 10px 0;
-        }
-        .product-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .order-item {
+            background: #f8f9fa;
+            border-left: 4px solid #007bff;
             padding: 10px;
-            margin: 5px 0;
-            background: rgba(255,255,255,0.1);
+            margin-bottom: 10px;
             border-radius: 5px;
-            border-left: 4px solid #ffd700;
         }
-        .category-chart {
-            height: 250px;
+        .orders-container {
+            max-height: 400px;
+            overflow-y: auto;
+            padding: 10px;
         }
-        .trend-indicator {
+        .status-indicator {
             display: inline-block;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: bold;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
         }
-        .trend-up { background: #28a745; color: white; }
-        .trend-down { background: #dc3545; color: white; }
-        .trend-stable { background: #6c757d; color: white; }
+        .status-connected { background-color: #28a745; }
+        .status-disconnected { background-color: #dc3545; }
+        body {
+            background-color: #f5f6fa;
+        }
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
-        <div class="container">
-            <span class="navbar-brand">
-                <i class="fas fa-chart-line"></i> ASEED Dashboard
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-chart-line me-2"></i>
+                Real-time Spark Streaming Dashboard
             </span>
-            <div class="navbar-nav ms-auto">
-                <span class="navbar-text" id="last-update">
-                    Ostatnia aktualizacja: --
-                </span>
-            </div>
+            <span class="navbar-text">
+                <span class="status-indicator" id="connectionStatus"></span>
+                <span id="statusText">Connecting...</span>
+            </span>
         </div>
     </nav>
 
-    <div class="container-fluid py-4">
-        <!-- Analytics Section -->
-        <div class="analytics-section">
-            <div class="row">
-                <div class="col-12">
-                    <h3><i class="fas fa-chart-line"></i> Analiza Zamówień w Czasie Rzeczywistym</h3>
+    <div class="container-fluid mt-4">
+        <!-- Metrics Row -->
+        <div class="row">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value" id="totalOrders">0</div>
+                    <div class="metric-label">Total Orders</div>
                 </div>
             </div>
-            <div class="row mt-3">
-                <div class="col-md-3">
-                    <div class="text-center">
-                        <div class="metric-live" id="orders-per-minute">0</div>
-                        <small>Zamówienia/min</small>
-                    </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value" id="totalRevenue">$0.00</div>
+                    <div class="metric-label">Total Revenue</div>
                 </div>
-                <div class="col-md-3">
-                    <div class="text-center">
-                        <div class="metric-live" id="revenue-per-minute">$0</div>
-                        <small>Przychód/min</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="text-center">
-                        <div class="metric-live" id="avg-order-value">$0</div>
-                        <small>Śr. wartość zamówienia</small>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="text-center">
-                        <div class="metric-live" id="total-orders">0</div>
-                        <small>Łączne zamówienia</small>
-                    </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value" id="ordersPerMinute">0</div>
+                    <div class="metric-label">Orders/Minute</div>
                 </div>
             </div>
         </div>
 
         <!-- Charts Row -->
-        <div class="row mb-4">
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-chart-area"></i> Trendy Zamówień (Ostatnie 12h)</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-container">
-                            <canvas id="ordersChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-chart-pie"></i> Kategorie Produktów</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="category-chart">
-                            <canvas id="categoryChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Top Products and System Status Row -->
-        <div class="row mb-4">
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-trophy"></i> Top 10 Produktów</h5>
-                    </div>
-                    <div class="card-body">
-                        <div id="top-products-list">
-                            <div class="text-center text-muted py-4">
-                                <i class="fas fa-spinner fa-spin"></i> Ładowanie danych...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-lg-6">
-                <div class="card">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <h5><i class="fas fa-server"></i> Status Serwisów</h5>
-                        <div class="btn-group" role="group">
-                            <button class="btn btn-success btn-sm" onclick="executeCommand('start')">
-                                <i class="fas fa-play"></i> Start All
-                            </button>
-                            <button class="btn btn-danger btn-sm" onclick="executeCommand('stop')">
-                                <i class="fas fa-stop"></i> Stop All
-                            </button>
-                            <button class="btn btn-info btn-sm" onclick="refreshStatus()">
-                                <i class="fas fa-sync"></i> Odśwież
-                            </button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="row" id="services-status">
-                            <!-- Services will be populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- System Resources Row -->
-        <div class="row mb-4">
-            <div class="col-md-3">
-                <div class="card metric-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title"><i class="fas fa-microchip"></i> CPU</h5>
-                        <h3 id="cpu-usage" class="text-primary">--</h3>
-                        <div class="progress">
-                            <div id="cpu-progress" class="progress-bar bg-primary" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title"><i class="fas fa-memory"></i> RAM</h5>
-                        <h3 id="memory-usage" class="text-info">--</h3>
-                        <div class="progress">
-                            <div id="memory-progress" class="progress-bar bg-info" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title"><i class="fas fa-hdd"></i> Dysk</h5>
-                        <h3 id="disk-usage" class="text-warning">--</h3>
-                        <div class="progress">
-                            <div id="disk-progress" class="progress-bar bg-warning" style="width: 0%"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-md-3">
-                <div class="card metric-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title"><i class="fas fa-tachometer-alt"></i> Load Avg</h5>
-                        <h3 id="load-average" class="text-success">--</h3>
-                        <small class="text-muted">1min / 5min / 15min</small>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Content -->
         <div class="row">
-            <!-- Logs Section -->
-            <div class="col-lg-8">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-file-alt"></i> Logi Systemu</h5>
-                        <div class="btn-group btn-group-sm" role="group">
-                            <button class="btn btn-outline-primary active" onclick="showLogs('data_analyzer', this)">Analyzer</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('order_simulator', this)">Simulator</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('kafka', this)">Kafka</button>
-                            <button class="btn btn-outline-primary" onclick="showLogs('zookeeper', this)">Zookeeper</button>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div id="logs-container" class="log-container">
-                            Ładowanie logów...
-                        </div>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5><i class="fas fa-trophy text-warning me-2"></i>Top Products</h5>
+                    <div class="chart-wrapper">
+                        <canvas id="topProductsChart" class="chart-canvas"></canvas>
                     </div>
                 </div>
             </div>
-
-            <!-- Configuration Panel -->
-            <div class="col-lg-4">
-                <div class="card">
-                    <div class="card-header">
-                        <h5><i class="fas fa-cogs"></i> Konfiguracja</h5>
-                    </div>
-                    <div class="card-body">
-                        <form id="config-form" class="config-form">
-                            <div class="mb-3">
-                                <label class="form-label">Kafka Bootstrap Servers</label>
-                                <input type="text" class="form-control" name="KAFKA_BOOTSTRAP_SERVERS" value="">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Kafka Topic</label>
-                                <input type="text" class="form-control" name="KAFKA_TOPIC" value="">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Zamówienia na sekundę</label>
-                                <input type="number" class="form-control" name="ORDERS_PER_SECOND" min="0.1" max="100" step="0.1" value="">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Liczba produktów</label>
-                                <input type="number" class="form-control" name="PRODUCT_COUNT" min="10" max="1000" value="">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Spark Master URL</label>
-                                <input type="text" class="form-control" name="SPARK_MASTER_URL" value="">
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100">
-                                <i class="fas fa-save"></i> Zapisz Konfigurację
-                            </button>
-                        </form>
+            <div class="col-md-6">
+                <div class="chart-container">
+                    <h5><i class="fas fa-tags text-info me-2"></i>Categories</h5>
+                    <div class="chart-wrapper">
+                        <canvas id="categoriesChart" class="chart-canvas"></canvas>
                     </div>
                 </div>
+            </div>
+        </div>
 
-                <!-- System Commands -->
-                <div class="card mt-4">
-                    <div class="card-header">
-                        <h5><i class="fas fa-terminal"></i> Komendy Systemowe</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="d-grid gap-2">
-                            <button class="btn btn-outline-info" onclick="executeCommand('check')">
-                                <i class="fas fa-check-circle"></i> Sprawdź Wymagania
-                            </button>
-                            <button class="btn btn-outline-warning" onclick="executeCommand('install')">
-                                <i class="fas fa-download"></i> Zainstaluj Zależności
-                            </button>
-                        </div>
-                    </div>
+        <!-- Recent Orders -->
+        <div class="row">
+            <div class="col-12">
+                <div class="chart-container">
+                    <h5><i class="fas fa-shopping-cart text-success me-2"></i>Real-time Orders (Latest 10)</h5>
+                    <div class="orders-container" id="recentOrders"></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Command Output Modal -->
-    <div class="modal fade" id="commandModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Wynik Komendy</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div id="command-output" class="command-output">
-                        Wykonywanie komendy...
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zamknij</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // WebSocket connection
+        // Initialize Socket.IO connection
         const socket = io();
-        let currentLogsService = 'data_analyzer';
         
-        // Charts
-        let ordersChart = null;
-        let categoryChart = null;
-
-        // Initialize dashboard
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('Dashboard initializing...');
-            
-            // Check if required elements exist
-            const logsContainer = document.getElementById('logs-container');
-            if (!logsContainer) {
-                console.error('logs-container element not found in DOM!');
-            }
-            
-            loadConfiguration();
-            refreshStatus();
-            
-            // Only load logs if container exists
-            if (logsContainer && currentLogsService) {
-                showLogs(currentLogsService);
-            }
-            
-            initializeCharts();
-            loadAnalytics();
-            
-            // Setup config form
-            document.getElementById('config-form').addEventListener('submit', saveConfiguration);
-        });
-
-        // Socket event handlers
+        // Chart variables
+        let topProductsChart, categoriesChart;
+        
+        // Connection status
         socket.on('connect', function() {
-            console.log('Connected to server');
-        });
-
-        socket.on('status_update', function(data) {
-            updateStatus(data);
+            document.getElementById('connectionStatus').className = 'status-indicator status-connected';
+            document.getElementById('statusText').textContent = 'Connected to Spark';
         });
         
-        socket.on('analytics_update', function(data) {
-            updateAnalytics(data);
+        socket.on('disconnect', function() {
+            document.getElementById('connectionStatus').className = 'status-indicator status-disconnected';
+            document.getElementById('statusText').textContent = 'Disconnected';
         });
-
-        // Initialize Charts
-        function initializeCharts() {
-            // Orders Trend Chart
-            const ordersCtx = document.getElementById('ordersChart').getContext('2d');
-            ordersChart = new Chart(ordersCtx, {
-                type: 'line',
+        
+        // Initialize charts
+        function initCharts() {
+            // Top Products Chart
+            const topProductsCtx = document.getElementById('topProductsChart').getContext('2d');
+            topProductsChart = new Chart(topProductsCtx, {
+                type: 'bar',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: 'Zamówienia',
+                        label: 'Order Count',
                         data: [],
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
-                        tension: 0.1,
-                        fill: true
-                    }, {
-                        label: 'Przychód ($)',
-                        data: [],
-                        borderColor: 'rgb(255, 99, 132)',
-                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
-                        tension: 0.1,
-                        fill: true,
-                        yAxisID: 'y1'
+                        backgroundColor: 'rgba(54, 162, 235, 0.8)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disable animations to prevent resizing
+                    },
                     plugins: {
                         legend: {
-                            labels: { color: 'white' }
+                            display: false
                         }
                     },
                     scales: {
-                        x: {
-                            ticks: { color: 'white' },
-                            grid: { color: 'rgba(255,255,255,0.1)' }
-                        },
                         y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            ticks: { color: 'white' },
-                            grid: { color: 'rgba(255,255,255,0.1)' }
+                            beginAtZero: true,
+                            ticks: {
+                                maxTicksLimit: 8 // Limit number of ticks
+                            }
                         },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            ticks: { color: 'white' },
-                            grid: { drawOnChartArea: false }
+                        x: {
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 0
+                            }
                         }
+                    },
+                    layout: {
+                        padding: 10
                     }
                 }
             });
-
-            // Category Pie Chart
-            const categoryCtx = document.getElementById('categoryChart').getContext('2d');
-            categoryChart = new Chart(categoryCtx, {
+            
+            // Categories Chart
+            const categoriesCtx = document.getElementById('categoriesChart').getContext('2d');
+            categoriesChart = new Chart(categoriesCtx, {
                 type: 'doughnut',
                 data: {
                     labels: [],
                     datasets: [{
                         data: [],
                         backgroundColor: [
-                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
                             '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
                         ]
                     }]
@@ -471,309 +226,158 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    animation: {
+                        duration: 0 // Disable animations to prevent resizing
+                    },
                     plugins: {
                         legend: {
                             position: 'bottom',
-                            labels: { color: 'black' }
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 10
+                                },
+                                padding: 8,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            top: 10,
+                            bottom: 10,
+                            left: 10,
+                            right: 10
                         }
                     }
                 }
             });
         }
-
-        // Load analytics data
-        function loadAnalytics() {
-            fetch('/api/analytics')
-                .then(response => response.json())
-                .then(data => updateAnalytics(data))
-                .catch(error => console.error('Error loading analytics:', error));
+        
+        // Update metrics
+        function updateMetrics(metrics) {
+            document.getElementById('totalOrders').textContent = metrics.total_orders || 0;
+            document.getElementById('totalRevenue').textContent = '$' + (metrics.total_revenue || 0).toFixed(2);
+            document.getElementById('ordersPerMinute').textContent = metrics.orders_per_minute || 0;
         }
-
-        // Update analytics display
-        function updateAnalytics(data) {
-            // Update real-time metrics
-            const metrics = data.real_time_metrics;
-            document.getElementById('orders-per-minute').textContent = metrics.orders_per_minute;
-            document.getElementById('revenue-per-minute').textContent = `$${metrics.revenue_per_minute}`;
-            document.getElementById('avg-order-value').textContent = `$${metrics.avg_order_value}`;
-            document.getElementById('total-orders').textContent = metrics.total_orders;
-
-            // Update top products
-            updateTopProducts(data.top_products);
-
-            // Update charts
-            updateOrdersChart(data.hourly_trends);
-            updateCategoryChart(data.category_breakdown);
-        }
-
-        // Update top products list
-        function updateTopProducts(products) {
-            const container = document.getElementById('top-products-list');
-            
-            if (products.length === 0) {
-                container.innerHTML = '<div class="text-center text-muted py-4">Brak danych o produktach</div>';
+        
+        // Update top products chart
+        function updateTopProductsChart(products) {
+            if (!products || products.length === 0) {
+                // Show empty state with fixed structure
+                topProductsChart.data.labels = ['No data'];
+                topProductsChart.data.datasets[0].data = [0];
+                topProductsChart.update('none'); // No animation for better performance
                 return;
             }
-
-            let html = '';
-            products.forEach((product, index) => {
-                const rank = index + 1;
-                const medal = rank <= 3 ? ['🥇', '🥈', '🥉'][rank - 1] : `${rank}.`;
-                html += `
-                    <div class="product-item">
-                        <div>
-                            <strong>${medal} ${product.name}</strong><br>
-                            <small class="text-muted">${product.category}</small>
-                        </div>
-                        <div class="text-end">
-                            <div><strong>${product.count}</strong> szt.</div>
-                            <div class="text-success">$${product.revenue}</div>
-                        </div>
-                    </div>
-                `;
-            });
-            container.innerHTML = html;
-        }
-
-        // Update orders chart
-        function updateOrdersChart(hourlyData) {
-            if (!ordersChart || !hourlyData) return;
-
-            const labels = hourlyData.map(item => item.time);
-            const orders = hourlyData.map(item => item.orders);
-            const revenue = hourlyData.map(item => item.revenue);
-
-            ordersChart.data.labels = labels;
-            ordersChart.data.datasets[0].data = orders;
-            ordersChart.data.datasets[1].data = revenue;
-            ordersChart.update('none');
-        }
-
-        // Update category chart
-        function updateCategoryChart(categoryData) {
-            if (!categoryChart || !categoryData) return;
-
-            const labels = categoryData.map(item => item.category);
-            const data = categoryData.map(item => item.count);
-
-            categoryChart.data.labels = labels;
-            categoryChart.data.datasets[0].data = data;
-            categoryChart.update('none');
-        }
-
-        // Load configuration
-        function loadConfiguration() {
-            fetch('/api/config')
-                .then(response => response.json())
-                .then(config => {
-                    const form = document.getElementById('config-form');
-                    Object.keys(config).forEach(key => {
-                        const input = form.querySelector(`[name="${key}"]`);
-                        if (input) {
-                            input.value = config[key];
-                        }
-                    });
-                })
-                .catch(error => console.error('Error loading config:', error));
-        }
-
-        // Save configuration
-        function saveConfiguration(event) {
-            event.preventDefault();
-            const formData = new FormData(event.target);
-            const config = {};
             
-            for (let [key, value] of formData.entries()) {
-                config[key] = value;
+            // Limit to top 8 products to prevent overcrowding
+            const topProducts = products.slice(0, 8);
+            const labels = topProducts.map(p => {
+                // Truncate long product names
+                return p.product_name.length > 15 ? 
+                       p.product_name.substring(0, 15) + '...' : 
+                       p.product_name;
+            });
+            const data = topProducts.map(p => p.order_count);
+            
+            topProductsChart.data.labels = labels;
+            topProductsChart.data.datasets[0].data = data;
+            topProductsChart.update('none'); // No animation for better performance
+        }
+        
+        // Update categories chart
+        function updateCategoriesChart(categories) {
+            if (!categories || categories.length === 0) {
+                // Show empty state with fixed structure
+                categoriesChart.data.labels = ['No data'];
+                categoriesChart.data.datasets[0].data = [1];
+                categoriesChart.update('none'); // No animation for better performance
+                return;
             }
-
-            fetch('/api/config', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(config)
-            })
-            .then(response => response.json())
-            .then(result => {
-                if (result.success) {
-                    showAlert('Konfiguracja zapisana pomyślnie!', 'success');
-                } else {
-                    showAlert('Błąd zapisu konfiguracji!', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error saving config:', error);
-                showAlert('Błąd zapisu konfiguracji!', 'danger');
-            });
+            
+            // Limit to top 6 categories for better visibility
+            const topCategories = categories.slice(0, 6);
+            const labels = topCategories.map(c => c.category);
+            const data = topCategories.map(c => c.total_revenue);
+            
+            categoriesChart.data.labels = labels;
+            categoriesChart.data.datasets[0].data = data;
+            categoriesChart.update('none'); // No animation for better performance
         }
-
-        // Refresh status
-        function refreshStatus() {
-            fetch('/api/status')
-                .then(response => response.json())
-                .then(data => updateStatus(data))
-                .catch(error => console.error('Error fetching status:', error));
-        }
-
-        // Update status display
-        function updateStatus(data) {
-            // Update timestamp
-            document.getElementById('last-update').textContent = `Ostatnia aktualizacja: ${data.timestamp}`;
-            
-            // Update system resources
-            const resources = data.system_resources;
-            document.getElementById('cpu-usage').textContent = `${resources.cpu_percent.toFixed(1)}%`;
-            document.getElementById('cpu-progress').style.width = `${resources.cpu_percent}%`;
-            
-            document.getElementById('memory-usage').textContent = `${resources.memory_percent.toFixed(1)}%`;
-            document.getElementById('memory-progress').style.width = `${resources.memory_percent}%`;
-            
-            document.getElementById('disk-usage').textContent = `${resources.disk_percent.toFixed(1)}%`;
-            document.getElementById('disk-progress').style.width = `${resources.disk_percent}%`;
-            
-            const loadAvg = resources.load_average;
-            document.getElementById('load-average').textContent = `${loadAvg[0].toFixed(2)} / ${loadAvg[1].toFixed(2)} / ${loadAvg[2].toFixed(2)}`;
-            
-            // Update services status
-            updateServicesStatus(data);
-        }
-
-        // Update services status
-        function updateServicesStatus(data) {
-            const container = document.getElementById('services-status');
-            const services = ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer'];
-            
+        
+        // Update recent orders
+        function updateRecentOrders(orders) {
+            const container = document.getElementById('recentOrders');
             container.innerHTML = '';
             
-            services.forEach(service => {
-                const serviceData = data[service];
-                const statusClass = `status-${serviceData.status}`;
-                const statusIcon = serviceData.status === 'running' ? 'fa-check-circle' : 
-                                 serviceData.status === 'stopped' ? 'fa-stop-circle' : 'fa-exclamation-triangle';
-                
-                const card = document.createElement('div');
-                card.className = 'col-md-6 mb-3';
-                card.innerHTML = `
-                    <div class="card service-card">
-                        <div class="card-body">
-                            <h6 class="card-title">
-                                <i class="fas ${statusIcon} ${statusClass}"></i> 
-                                ${service.replace('_', ' ').toUpperCase()}
-                            </h6>
-                            <p class="card-text">
-                                <strong>Status:</strong> <span class="${statusClass}">${serviceData.status}</span><br>
-                                ${serviceData.pid ? `<strong>PID:</strong> ${serviceData.pid}<br>` : ''}
-                                ${serviceData.uptime ? `<strong>Uptime:</strong> ${serviceData.uptime}<br>` : ''}
-                                ${serviceData.cpu_percent ? `<strong>CPU:</strong> ${serviceData.cpu_percent.toFixed(1)}%<br>` : ''}
-                                ${serviceData.memory_mb ? `<strong>RAM:</strong> ${serviceData.memory_mb.toFixed(1)} MB` : ''}
-                            </p>
+            if (!orders || orders.length === 0) {
+                container.innerHTML = '<p class="text-muted">No recent orders...</p>';
+                return;
+            }
+            
+            // Show only last 10 orders, newest first
+            const recentOrders = orders.slice(-10).reverse();
+            
+            recentOrders.forEach(order => {
+                const orderDiv = document.createElement('div');
+                orderDiv.className = 'order-item';
+                orderDiv.innerHTML = `
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>${order.product_name}</strong>
+                        </div>
+                        <div class="col-md-2">
+                            <span class="badge bg-secondary">${order.category}</span>
+                        </div>
+                        <div class="col-md-2">
+                            $${order.price} × ${order.quantity}
+                        </div>
+                        <div class="col-md-2">
+                            <strong>$${order.total_value.toFixed(2)}</strong>
+                        </div>
+                        <div class="col-md-3">
+                            <small class="text-muted">${new Date(order.timestamp).toLocaleTimeString()}</small>
                         </div>
                     </div>
                 `;
-                container.appendChild(card);
+                container.appendChild(orderDiv);
             });
         }
-
-        // Show logs for service
-        function showLogs(serviceName, element = null) {
-            currentLogsService = serviceName;
-            
-            // Update active button
-            document.querySelectorAll('.btn-group .btn').forEach(btn => btn.classList.remove('active'));
-            if (element && element.classList) {
-                element.classList.add('active');
-            }
-            
-            fetch(`/api/logs/${serviceName}?lines=100`)
-                .then(response => response.json())
-                .then(data => {
-                    const container = document.getElementById('logs-container');
-                    if (!container) {
-                        console.error('logs-container element not found');
-                        return;
-                    }
-                    if (data.logs && data.logs.length === 0) {
-                        container.innerHTML = '<div class="text-muted">Brak logów dla tego serwisu</div>';
-                    } else if (data.logs) {
-                        container.innerHTML = data.logs.join('<br>');
-                        container.scrollTop = container.scrollHeight;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading logs:', error);
-                    const container = document.getElementById('logs-container');
-                    if (container) {
-                        container.innerHTML = '<div class="text-danger">Błąd ładowania logów</div>';
-                    }
-                });
-        }
-
-        // Execute system command
-        function executeCommand(command) {
-            const modal = new bootstrap.Modal(document.getElementById('commandModal'));
-            const output = document.getElementById('command-output');
-            
-            output.innerHTML = `Wykonywanie komendy: ${command}...`;
-            modal.show();
-            
-            fetch(`/api/command/${command}`, {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(result => {
-                let outputHtml = `<strong>Komenda:</strong> ${command}<br>`;
-                outputHtml += `<strong>Status:</strong> ${result.success ? 'Sukces' : 'Błąd'}<br><br>`;
-                
-                if (result.stdout) {
-                    outputHtml += `<strong>Output:</strong><br>${result.stdout.replace(/\\n/g, '<br>')}<br><br>`;
-                }
-                
-                if (result.stderr) {
-                    outputHtml += `<strong>Errors:</strong><br><span class="text-danger">${result.stderr.replace(/\\n/g, '<br>')}</span><br><br>`;
-                }
-                
-                if (result.message) {
-                    outputHtml += `<strong>Message:</strong><br>${result.message}<br>`;
-                }
-                
-                output.innerHTML = outputHtml;
-                
-                // Refresh status after command execution
-                setTimeout(refreshStatus, 2000);
-            })
-            .catch(error => {
-                console.error('Error executing command:', error);
-                output.innerHTML = `<span class="text-danger">Błąd wykonania komendy: ${error}</span>`;
-            });
-        }
-
-        // Show alert
-        function showAlert(message, type) {
-            const alert = document.createElement('div');
-            alert.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            alert.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
-            alert.innerHTML = `
-                ${message}
-                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-            `;
-            document.body.appendChild(alert);
-            
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
-        }
-
-        // Auto-refresh logs every 10 seconds
-        setInterval(() => {
-            if (currentLogsService && document.getElementById('logs-container')) {
-                console.log('Auto-refreshing logs for:', currentLogsService);
-                showLogs(currentLogsService);
-            }
-        }, 10000);
         
-        // Auto-refresh analytics every 5 seconds
-        setInterval(() => {
-            loadAnalytics();
-        }, 5000);
+        // Socket event handlers
+        socket.on('initial_data', function(data) {
+            console.log('Received initial data:', data);
+            updateMetrics(data.metrics);
+            updateTopProductsChart(data.top_products);
+            updateCategoriesChart(data.categories);
+            updateRecentOrders(data.recent_orders);
+        });
+        
+        socket.on('top_products_update', function(data) {
+            console.log('Top products update:', data);
+            updateTopProductsChart(data.products);
+        });
+        
+        socket.on('categories_update', function(data) {
+            console.log('Categories update:', data);
+            updateCategoriesChart(data.categories);
+        });
+        
+        socket.on('raw_orders_update', function(data) {
+            console.log('Raw orders update:', data);
+            updateMetrics({
+                total_orders: data.total_orders,
+                total_revenue: data.total_revenue,
+                orders_per_minute: data.orders_per_minute || 0
+            });
+            updateRecentOrders(data.orders);
+        });
+        
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initCharts();
+        });
     </script>
 </body>
 </html>

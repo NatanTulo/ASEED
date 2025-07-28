@@ -2,6 +2,9 @@ import os
 import time
 import signal
 import sys
+import json
+import requests
+from datetime import datetime
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.types import *
@@ -19,6 +22,7 @@ class OrderAnalyzer:
         self.spark_master = os.getenv('SPARK_MASTER_URL', 'local[*]')
         self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
         self.kafka_topic = os.getenv('KAFKA_TOPIC', 'orders')
+        self.dashboard_url = os.getenv('DASHBOARD_URL', 'http://localhost:5005')
         
         self.spark = None
         self.running = True
@@ -32,6 +36,21 @@ class OrderAnalyzer:
         """Obsługa sygnałów do graceful shutdown"""
         logger.info(f"Otrzymano sygnał {signum}. Zatrzymywanie analizatora...")
         self.running = False
+    
+    def _send_to_dashboard(self, endpoint, data):
+        """Wysyła dane do dashboard"""
+        try:
+            response = requests.post(
+                f"{self.dashboard_url}/api/{endpoint}",
+                json=data,
+                timeout=5
+            )
+            if response.status_code == 200:
+                logger.debug(f"Wysłano dane do dashboard: {endpoint}")
+            else:
+                logger.warning(f"Błąd wysyłania do dashboard: {response.status_code}")
+        except Exception as e:
+            logger.debug(f"Nie można połączyć z dashboard: {e}")  # Debug level - nie spam logów
         
     def _create_spark_session(self):
         """Tworzy sesję Spark"""
@@ -176,6 +195,29 @@ class OrderAnalyzer:
                 
                 products_list = top_products.collect()
                 
+                # Przygotuj dane dla dashboard
+                dashboard_data = []
+                for row in products_list:
+                    dashboard_data.append({
+                        'product_id': row['product_id'],
+                        'product_name': row['product_name'],
+                        'category': row['category'],
+                        'order_count': row['order_count'],
+                        'total_quantity': row['total_quantity'],
+                        'total_revenue': float(row['total_revenue']),
+                        'avg_price': float(row['avg_price']),
+                        'window_start': row['window_start'].isoformat(),
+                        'window_end': row['window_end'].isoformat()
+                    })
+                
+                # Wyślij do dashboard
+                self._send_to_dashboard('top_products', {
+                    'batch_id': batch_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'products': dashboard_data
+                })
+                
+                # Loguj wyniki
                 for i, row in enumerate(products_list, 1):
                     logger.info(f"{i:2d}. {row['product_name']}")
                     logger.info(f"    Kategoria: {row['category']}")
@@ -205,6 +247,27 @@ class OrderAnalyzer:
                     .orderBy(desc("total_revenue")) \
                     .collect()
                 
+                # Przygotuj dane dla dashboard
+                dashboard_data = []
+                for row in categories:
+                    dashboard_data.append({
+                        'category': row['category'],
+                        'order_count': row['order_count'],
+                        'total_quantity': row['total_quantity'], 
+                        'total_revenue': float(row['total_revenue']),
+                        'unique_products': row['unique_products'],
+                        'window_start': row['window_start'].isoformat(),
+                        'window_end': row['window_end'].isoformat()
+                    })
+                
+                # Wyślij do dashboard
+                self._send_to_dashboard('categories', {
+                    'batch_id': batch_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'categories': dashboard_data
+                })
+                
+                # Loguj wyniki
                 for row in categories:
                     logger.info(f"Kategoria: {row['category']}")
                     logger.info(f"  Zamówienia: {row['order_count']}, Produkty: {row['unique_products']}")
@@ -216,6 +279,47 @@ class OrderAnalyzer:
             .foreachBatch(process_batch) \
             .outputMode("complete") \
             .trigger(processingTime='15 seconds') \
+            .start()
+        
+        return query
+    
+    def _output_raw_orders(self, orders_df):
+        """Wyprowadza surowe zamówienia do dashboard"""
+        
+        def process_batch(batch_df, batch_id):
+            if batch_df.count() > 0:
+                # Weź ostatnie 50 zamówień
+                recent_orders = batch_df \
+                    .orderBy(desc("timestamp_parsed")) \
+                    .limit(50) \
+                    .collect()
+                
+                # Przygotuj dane dla dashboard
+                dashboard_data = []
+                for row in recent_orders:
+                    dashboard_data.append({
+                        'order_id': row['order_id'],
+                        'product_id': row['product_id'],
+                        'product_name': row['product_name'],
+                        'category': row['category'],
+                        'price': float(row['price']),
+                        'quantity': row['quantity'],
+                        'total_value': float(row['total_value']),
+                        'customer_id': row['customer_id'],
+                        'timestamp': row['timestamp_parsed'].isoformat() if row['timestamp_parsed'] else row['timestamp']
+                    })
+                
+                # Wyślij do dashboard
+                self._send_to_dashboard('raw_orders', {
+                    'batch_id': batch_id,
+                    'timestamp': datetime.now().isoformat(),
+                    'orders': dashboard_data
+                })
+        
+        query = orders_df.writeStream \
+            .foreachBatch(process_batch) \
+            .outputMode("append") \
+            .trigger(processingTime='5 seconds') \
             .start()
         
         return query
@@ -237,11 +341,12 @@ class OrderAnalyzer:
         category_analysis = self._analyze_categories(orders_df)
         
         # Uruchom strumienie wyjściowe
+        raw_orders_query = self._output_raw_orders(orders_df)
         product_query = self._output_top_products(product_analysis)
         category_query = self._output_categories(category_analysis)
         
         # Zapisz zapytania do listy dla łatwiejszego zarządzania
-        self.queries = [product_query, category_query]
+        self.queries = [raw_orders_query, product_query, category_query]
         
         try:
             # Czekaj na zakończenie lub sygnał

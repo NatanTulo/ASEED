@@ -18,7 +18,7 @@ cd ASEED
 # Uruchom wszystko jedną komendą
 python3 aseed.py start
 
-# Dashboard dostępny na: http://localhost:5000
+# Dashboard dostępny na: http://localhost:5005
 ```
 
 ### 3. Zatrzymywanie
@@ -83,9 +83,9 @@ ps aux | grep -E "kafka|python"
 ```
 
 ### API Endpoints
-- `http://localhost:5000` - Dashboard
-- `http://localhost:5000/api/analytics` - JSON z metrykami
-- `http://localhost:5000/api/top-products` - Top sellers
+- `http://localhost:5005` - Dashboard
+- `http://localhost:5005/api/analytics` - JSON z metrykami
+- `http://localhost:5005/api/top-products` - Top sellers
 
 ## 🐛 Problemy?
 
