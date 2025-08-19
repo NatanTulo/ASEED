@@ -47,52 +47,76 @@ class OrderSimulator:
         """Generuje listę produktów"""
         products = []
         
-        # Realistyczne produkty dla każdej kategorii
+        # Realistyczne produkty dla każdej kategorii z odpowiednimi cenami
         product_templates = {
-            'Electronics': [
-                'Wireless Bluetooth Headphones', 'Smart LED TV', 'Gaming Mechanical Keyboard',
-                'USB-C Power Bank', 'Smartphone Case', 'Wireless Charging Pad',
-                'Bluetooth Speaker', 'Digital Camera', 'Laptop Stand', 'Smart Watch'
-            ],
-            'Clothing': [
-                'Cotton T-Shirt', 'Denim Jeans', 'Winter Jacket', 'Running Sneakers',
-                'Wool Sweater', 'Leather Boots', 'Summer Dress', 'Baseball Cap',
-                'Casual Hoodie', 'Canvas Backpack'
-            ],
-            'Books': [
-                'Programming Guide', 'Mystery Novel', 'Science Fiction Book', 'Cookbook',
-                'History Encyclopedia', 'Self-Help Book', 'Art Album', 'Travel Guide',
-                'Biography', 'Poetry Collection'
-            ],
-            'Home': [
-                'Coffee Maker', 'Table Lamp', 'Throw Pillow', 'Kitchen Knife Set',
-                'Ceramic Vase', 'Wall Clock', 'Storage Box', 'Candle Set',
-                'Picture Frame', 'Bed Sheets'
-            ],
-            'Sports': [
-                'Yoga Mat', 'Dumbbells Set', 'Tennis Racket', 'Basketball',
-                'Running Shoes', 'Fitness Tracker', 'Water Bottle', 'Gym Bag',
-                'Exercise Ball', 'Resistance Bands'
-            ],
-            'Beauty': [
-                'Face Moisturizer', 'Lip Balm', 'Shampoo', 'Perfume',
-                'Makeup Brush Set', 'Sunscreen', 'Hair Conditioner', 'Face Mask',
-                'Nail Polish', 'Essential Oil'
-            ]
+            'Electronics': {
+                'products': [
+                    'Wireless Bluetooth Headphones', 'Smart LED TV', 'Gaming Mechanical Keyboard',
+                    'USB-C Power Bank', 'Smartphone Case', 'Wireless Charging Pad',
+                    'Bluetooth Speaker', 'Digital Camera', 'Laptop Stand', 'Smart Watch'
+                ],
+                'base_price_range': (49.99, 899.99)  # Elektronika: $50-900
+            },
+            'Clothing': {
+                'products': [
+                    'Cotton T-Shirt', 'Denim Jeans', 'Winter Jacket', 'Running Sneakers',
+                    'Wool Sweater', 'Leather Boots', 'Summer Dress', 'Baseball Cap',
+                    'Casual Hoodie', 'Canvas Backpack'
+                ],
+                'base_price_range': (12.99, 179.99)  # Ubrania: $13-180
+            },
+            'Books': {
+                'products': [
+                    'Programming Guide', 'Mystery Novel', 'Science Fiction Book', 'Cookbook',
+                    'History Encyclopedia', 'Self-Help Book', 'Art Album', 'Travel Guide',
+                    'Biography', 'Poetry Collection'
+                ],
+                'base_price_range': (8.99, 49.99)  # Książki: $9-50
+            },
+            'Home': {
+                'products': [
+                    'Coffee Maker', 'Table Lamp', 'Throw Pillow', 'Kitchen Knife Set',
+                    'Ceramic Vase', 'Wall Clock', 'Storage Box', 'Candle Set',
+                    'Picture Frame', 'Bed Sheets'
+                ],
+                'base_price_range': (19.99, 299.99)  # Dom: $20-300
+            },
+            'Sports': {
+                'products': [
+                    'Yoga Mat', 'Dumbbells Set', 'Tennis Racket', 'Basketball',
+                    'Running Shoes', 'Fitness Tracker', 'Water Bottle', 'Gym Bag',
+                    'Exercise Ball', 'Resistance Bands'
+                ],
+                'base_price_range': (15.99, 249.99)  # Sport: $16-250
+            },
+            'Beauty': {
+                'products': [
+                    'Face Moisturizer', 'Lip Balm', 'Shampoo', 'Perfume',
+                    'Makeup Brush Set', 'Sunscreen', 'Hair Conditioner', 'Face Mask',
+                    'Nail Polish', 'Essential Oil'
+                ],
+                'base_price_range': (6.99, 89.99)  # Kosmetyki: $7-90
+            }
         }
         
-        # Generuj produkty używając predefiniowanych nazw
+        # Generuj produkty używając predefiniowanych nazw i realistycznych cen
         product_id = 1
-        for category, product_names in product_templates.items():
+        for category, category_data in product_templates.items():
+            product_names = category_data['products']
+            min_price, max_price = category_data['base_price_range']
+            
             for name in product_names:
                 if product_id > self.product_count:
                     break
                     
+                # Losowa cena z odpowiedniego przedziału dla kategorii
+                base_price = round(random.uniform(min_price, max_price), 2)
+                
                 product = {
                     'id': f'PROD-{product_id:03d}',
                     'name': name,
                     'category': category,
-                    'base_price': round(random.uniform(5.99, 299.99), 2)
+                    'base_price': base_price
                 }
                 products.append(product)
                 product_id += 1
@@ -112,11 +136,15 @@ class OrderSimulator:
                 if random.choice([True, False]):
                     variant_name += f" - {random.choice(colors)}"
                 
+                # Warianty kosztują 80-150% ceny bazowej (Premium droższe, Essential tańsze)
+                price_multiplier = random.uniform(0.8, 1.5)
+                variant_price = round(base_product['base_price'] * price_multiplier, 2)
+                
                 product = {
                     'id': f'PROD-{len(products) + 1:03d}',
                     'name': variant_name,
                     'category': base_product['category'],
-                    'base_price': round(base_product['base_price'] * random.uniform(0.8, 1.5), 2)
+                    'base_price': variant_price
                 }
                 products.append(product)
         
