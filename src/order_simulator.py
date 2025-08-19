@@ -44,18 +44,81 @@ class OrderSimulator:
     def _generate_products(self):
         """Generuje listę produktów"""
         products = []
-        categories = ['Electronics', 'Clothing', 'Books', 'Home', 'Sports', 'Beauty']
         
-        for i in range(1, self.product_count + 1):
-            category = random.choice(categories)
-            product = {
-                'id': f'PROD-{i:03d}',
-                'name': f'{category} {self.fake.word().title()} {i}',
-                'category': category,
-                'base_price': round(random.uniform(5.99, 299.99), 2)
-            }
-            products.append(product)
-        return products
+        # Realistyczne produkty dla każdej kategorii
+        product_templates = {
+            'Electronics': [
+                'Wireless Bluetooth Headphones', 'Smart LED TV', 'Gaming Mechanical Keyboard',
+                'USB-C Power Bank', 'Smartphone Case', 'Wireless Charging Pad',
+                'Bluetooth Speaker', 'Digital Camera', 'Laptop Stand', 'Smart Watch'
+            ],
+            'Clothing': [
+                'Cotton T-Shirt', 'Denim Jeans', 'Winter Jacket', 'Running Sneakers',
+                'Wool Sweater', 'Leather Boots', 'Summer Dress', 'Baseball Cap',
+                'Casual Hoodie', 'Canvas Backpack'
+            ],
+            'Books': [
+                'Programming Guide', 'Mystery Novel', 'Science Fiction Book', 'Cookbook',
+                'History Encyclopedia', 'Self-Help Book', 'Art Album', 'Travel Guide',
+                'Biography', 'Poetry Collection'
+            ],
+            'Home': [
+                'Coffee Maker', 'Table Lamp', 'Throw Pillow', 'Kitchen Knife Set',
+                'Ceramic Vase', 'Wall Clock', 'Storage Box', 'Candle Set',
+                'Picture Frame', 'Bed Sheets'
+            ],
+            'Sports': [
+                'Yoga Mat', 'Dumbbells Set', 'Tennis Racket', 'Basketball',
+                'Running Shoes', 'Fitness Tracker', 'Water Bottle', 'Gym Bag',
+                'Exercise Ball', 'Resistance Bands'
+            ],
+            'Beauty': [
+                'Face Moisturizer', 'Lip Balm', 'Shampoo', 'Perfume',
+                'Makeup Brush Set', 'Sunscreen', 'Hair Conditioner', 'Face Mask',
+                'Nail Polish', 'Essential Oil'
+            ]
+        }
+        
+        # Generuj produkty używając predefiniowanych nazw
+        product_id = 1
+        for category, product_names in product_templates.items():
+            for name in product_names:
+                if product_id > self.product_count:
+                    break
+                    
+                product = {
+                    'id': f'PROD-{product_id:03d}',
+                    'name': name,
+                    'category': category,
+                    'base_price': round(random.uniform(5.99, 299.99), 2)
+                }
+                products.append(product)
+                product_id += 1
+                
+            if product_id > self.product_count:
+                break
+        
+        # Jeśli potrzebujemy więcej produktów, dodaj warianty z markami/modelami
+        if len(products) < self.product_count:
+            brands = ['Premium', 'Pro', 'Elite', 'Classic', 'Essential', 'Deluxe']
+            colors = ['Black', 'White', 'Blue', 'Red', 'Silver', 'Gold']
+            
+            base_products = products.copy()
+            while len(products) < self.product_count:
+                base_product = random.choice(base_products)
+                variant_name = f"{random.choice(brands)} {base_product['name']}"
+                if random.choice([True, False]):
+                    variant_name += f" - {random.choice(colors)}"
+                
+                product = {
+                    'id': f'PROD-{len(products) + 1:03d}',
+                    'name': variant_name,
+                    'category': base_product['category'],
+                    'base_price': round(base_product['base_price'] * random.uniform(0.8, 1.5), 2)
+                }
+                products.append(product)
+        
+        return products[:self.product_count]  # Zwróć dokładnie tyle ile potrzeba
     
     def _generate_product_weights(self):
         """Generuje wagi dla produktów - niektóre będą popularniejsze"""
