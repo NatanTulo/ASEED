@@ -135,13 +135,11 @@ class OrderAnalyzer:
         return orders_df
     
     def _analyze_top_products(self, orders_df):
-        """Analizuje top produkty w oknie czasowym"""
+        """Analizuje top produkty - agregacja globalna bez okien czasowych"""
         
-        # Analiza w oknie 1 minuty z aktualizacją co 10 sekund
-        windowed_analysis = orders_df \
-            .withWatermark("timestamp_parsed", "30 seconds") \
+        # Globalna agregacja wszystkich produktów bez okien czasowych
+        global_analysis = orders_df \
             .groupBy(
-                window(col("timestamp_parsed"), "1 minute", "10 seconds"),
                 col("product_id"),
                 col("product_name"),
                 col("category")
@@ -150,32 +148,25 @@ class OrderAnalyzer:
                 count("order_id").alias("order_count"),
                 sum("quantity").alias("total_quantity"),
                 sum("total_value").alias("total_revenue"),
-                avg("price").alias("avg_price")
-            ) \
-            .withColumn("window_start", col("window.start")) \
-            .withColumn("window_end", col("window.end")) \
-            .drop("window")
+                avg("price").alias("avg_price"),
+                max("timestamp_parsed").alias("last_order_time")
+            )
         
-        return windowed_analysis
-    
+        return global_analysis
+
     def _analyze_categories(self, orders_df):
-        """Analizuje sprzedaż po kategoriach"""
+        """Analizuje sprzedaż po kategoriach - agregacja globalna"""
         
+        # Globalna agregacja kategorii bez okien czasowych
         category_analysis = orders_df \
-            .withWatermark("timestamp_parsed", "30 seconds") \
-            .groupBy(
-                window(col("timestamp_parsed"), "1 minute", "10 seconds"),
-                col("category")
-            ) \
+            .groupBy(col("category")) \
             .agg(
                 count("order_id").alias("order_count"),
                 sum("quantity").alias("total_quantity"),
                 sum("total_value").alias("total_revenue"),
-                approx_count_distinct("product_id").alias("unique_products")
-            ) \
-            .withColumn("window_start", col("window.start")) \
-            .withColumn("window_end", col("window.end")) \
-            .drop("window")
+                approx_count_distinct("product_id").alias("unique_products"),
+                max("timestamp_parsed").alias("last_order_time")
+            )
         
         return category_analysis
     
@@ -274,8 +265,7 @@ class OrderAnalyzer:
                         'total_quantity': row['total_quantity'],
                         'total_revenue': float(row['total_revenue']),
                         'avg_price': float(row['avg_price']),
-                        'window_start': row['window_start'].isoformat(),
-                        'window_end': row['window_end'].isoformat()
+                        'window_start': row['last_order_time'].isoformat()
                     })
                 
                 # Wyślij do dashboard
@@ -291,12 +281,12 @@ class OrderAnalyzer:
                     logger.info(f"    Kategoria: {row['category']}")
                     logger.info(f"    Zamówienia: {row['order_count']}, Ilość: {row['total_quantity']}")
                     logger.info(f"    Przychód: ${row['total_revenue']:.2f}, Śr. cena: ${row['avg_price']:.2f}")
-                    logger.info(f"    Okno: {row['window_start']} - {row['window_end']}")
+                    logger.info(f"    Ostatnie zamówienie: {row['last_order_time']}")
                     logger.info("")
         
         query = analysis_df.writeStream \
             .foreachBatch(process_batch) \
-            .outputMode("append") \
+            .outputMode("complete") \
             .trigger(processingTime='10 seconds') \
             .start()
         
@@ -324,8 +314,7 @@ class OrderAnalyzer:
                         'total_quantity': row['total_quantity'], 
                         'total_revenue': float(row['total_revenue']),
                         'unique_products': row['unique_products'],
-                        'window_start': row['window_start'].isoformat(),
-                        'window_end': row['window_end'].isoformat()
+                        'last_order_time': row['last_order_time'].isoformat()
                     })
                 
                 # Wyślij do dashboard
@@ -340,12 +329,12 @@ class OrderAnalyzer:
                     logger.info(f"Kategoria: {row['category']}")
                     logger.info(f"  Zamówienia: {row['order_count']}, Produkty: {row['unique_products']}")
                     logger.info(f"  Przychód: ${row['total_revenue']:.2f}")
-                    logger.info(f"  Okno: {row['window_start']} - {row['window_end']}")
+                    logger.info(f"  Ostatnie zamówienie: {row['last_order_time']}")
                     logger.info("")
         
         query = analysis_df.writeStream \
             .foreachBatch(process_batch) \
-            .outputMode("append") \
+            .outputMode("complete") \
             .trigger(processingTime='15 seconds') \
             .start()
         

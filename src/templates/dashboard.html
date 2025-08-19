@@ -388,10 +388,23 @@
             // Limit to top 8 products to prevent overcrowding
             const topProducts = products.slice(0, 8);
             const labels = topProducts.map(p => {
-                // Truncate long product names
-                return p.product_name.length > 15 ? 
-                       p.product_name.substring(0, 15) + '...' : 
-                       p.product_name;
+                // Split long product names into multiple lines instead of truncating
+                const name = p.product_name;
+                if (name.length > 20) {
+                    // Find good break points (spaces) around the middle
+                    const words = name.split(' ');
+                    const mid = Math.ceil(words.length / 2);
+                    const firstLine = words.slice(0, mid).join(' ');
+                    const secondLine = words.slice(mid).join(' ');
+                    return [firstLine, secondLine];
+                } else if (name.length > 12) {
+                    // For medium names, try to break at a reasonable point
+                    const spaceIndex = name.indexOf(' ', 8);
+                    if (spaceIndex > 0 && spaceIndex < name.length - 3) {
+                        return [name.substring(0, spaceIndex), name.substring(spaceIndex + 1)];
+                    }
+                }
+                return name; // Short names stay on one line
             });
             const data = topProducts.map(p => p.order_count);
             
