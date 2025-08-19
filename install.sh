@@ -48,13 +48,13 @@ if [ ! -d "kafka_2.13-3.9.0" ]; then
 fi
 
 # Pobierz Spark jeśli nie istnieje
-if [ ! -d "spark-3.5.0-bin-hadoop3" ]; then
+if [ ! -d "spark-3.5.6-bin-hadoop3" ]; then
     echo "⚡ Pobieranie Apache Spark..."
-    if [ ! -f "spark-3.5.0-bin-hadoop3.tgz" ]; then
-        wget -q https://downloads.apache.org/spark/spark-3.5.0/spark-3.5.0-bin-hadoop3.tgz
+    if [ ! -f "spark-3.5.6-bin-hadoop3.tgz" ]; then
+        wget -q https://downloads.apache.org/spark/spark-3.5.6/spark-3.5.6-bin-hadoop3.tgz
     fi
-    tar -xzf spark-3.5.0-bin-hadoop3.tgz
-    rm -f spark-3.5.0-bin-hadoop3.tgz
+    tar -xzf spark-3.5.6-bin-hadoop3.tgz
+    rm -f spark-3.5.6-bin-hadoop3.tgz
 fi
 
 # Stwórz katalogi

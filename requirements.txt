@@ -5,3 +5,4 @@ faker==19.6.2
 flask==2.3.3
 flask-socketio==5.3.4
 psutil==5.9.5
+requests==2.31.0
