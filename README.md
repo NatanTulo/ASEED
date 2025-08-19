@@ -2,7 +2,7 @@
 
 🎯 **System analizy zamówień e-commerce w czasie rzeczywistym**
 
-System symuluje sklep internetowy wysyłający zamówienia przez Kafka, a Spark analizuje które produkty są najpopularniejsze.
+System symuluje realistyczny sklep internetowy wysyłający zamówienia przez Kafka, a Spark analizuje które produkty są najpopularniejsze na podstawie ilości sprzedanych sztuk.
 
 ## 🚀 Użycie
 
@@ -31,7 +31,12 @@ python3 aseed.py stop
 python3 aseed.py status
 ```
 
-### 5. Test z danymi (opcjonalnie)
+### 5. Restart systemu
+```bash
+python3 aseed.py restart
+```
+
+### 6. Test z danymi (opcjonalnie)
 ```bash
 # Generuj dane przez 5 minut, 20 zamówień/min
 python3 aseed.py test --minutes 5 --rate 20
@@ -39,21 +44,82 @@ python3 aseed.py test --minutes 5 --rate 20
 
 ## 📊 Co system robi?
 
-- **Order Simulator** → generuje realistyczne zamówienia e-commerce
-- **Kafka** → przesyła zamówienia w czasie rzeczywistym
-- **Spark** → analizuje które produkty są top sellers
-- **Dashboard** → pokazuje wyniki na wykresach
+- **Order Simulator** → generuje realistyczne zamówienia z konkretnymi cenami
+- **Kafka** → przesyła zamówienia w losowych odstępach (3-8 sekund)
+- **Spark** → analizuje produkty według **sprzedanych sztuk** (nie tylko zamówień)
+- **Dashboard** → wykresy w czasie rzeczywistym z pełnymi nazwami produktów
+
+## 🛍️ Realistyczne produkty i ceny
+
+System zawiera **60 produktów** w 6 kategoriach z **konkretnymi cenami**:
+
+### Electronics ($25-650):
+- Smart LED TV: $649.99
+- Digital Camera: $449.99  
+- Smart Watch: $299.99
+- Gaming Mechanical Keyboard: $129.99
+- Wireless Bluetooth Headphones: $79.99
+- Smartphone Case: $24.99
+
+### Clothing ($20-160):
+- Leather Boots: $159.99
+- Winter Jacket: $149.99
+- Running Sneakers: $119.99
+- Cotton T-Shirt: $19.99
+
+### Books ($13-50):
+- History Encyclopedia: $49.99
+- Programming Guide: $39.99
+- Mystery Novel: $14.99
+- Poetry Collection: $12.99
+
+### Home ($20-180):
+- Coffee Maker: $179.99
+- Kitchen Knife Set: $89.99
+- Bed Sheets: $54.99
+- Picture Frame: $19.99
+
+### Sports ($19-200):
+- Fitness Tracker: $199.99
+- Dumbbells Set: $149.99
+- Tennis Racket: $89.99
+- Water Bottle: $18.99
+
+### Beauty ($8-80):
+- Perfume: $79.99
+- Makeup Brush Set: $49.99
+- Face Moisturizer: $32.99
+- Lip Balm: $7.99
+
+## 📈 Dashboard Features
+
+### Wykresy:
+- **Top Products** - ranking według **sprzedanych sztuk** (nie zamówień)
+- **Categories** - wykres kołowy według zamówień z szczegółowymi tooltipami
+- **Real-time Orders** - ostatnie 10 zamówień na żywo
+
+### Tooltips w wykresach:
+Po najechaniu na kategorię zobaczysz:
+- Liczba zamówień
+- Sprzedane sztuki  
+- Przychody
+- Unikalne produkty
+
+### Nazwy produktów:
+- Długie nazwy dzielą się na kilka linijek
+- Pełne nazwy bez skrótów typu "..."
 
 ## 🔧 Architektura
 
 ```
 📱 Simulator → 📡 Kafka → ⚡ Spark → 📊 Dashboard
+   (3-8s)      (stream)   (analyze)   (real-time)
 ```
 
 ### Komponenty:
 - **Zookeeper** + **Kafka** - infrastruktura messaging
-- **Order Simulator** - generator zamówień JSON
-- **Data Analyzer** - Spark Structured Streaming
+- **Order Simulator** - generator realistycznych zamówień
+- **Data Analyzer** - Spark agregacja globalnych statystyk
 - **Web Dashboard** - Flask + Chart.js + WebSocket
 
 ## 📁 Struktura plików
@@ -75,6 +141,23 @@ ASEED/
 ├── pids/                      # PIDs procesów
 └── install.sh                # Instalacja zależności
 ```
+
+## 🎯 Kluczowe usprawnienia
+
+### Realistyczne zamówienia:
+- **Losowe interwały**: 3-8 sekund między zamówieniami
+- **Stałe ceny**: każdy produkt ma swoją konkretną cenę
+- **Sensowne nazwy**: "Wireless Bluetooth Headphones" zamiast losowych słów
+
+### Inteligentne analizy:
+- **Sprzedane sztuki**: wykres pokazuje łączną liczbę sprzedanych produktów
+- **Globalna agregacja**: wszystkie zamówienia od uruchomienia systemu
+- **Bez duplikatów**: każdy produkt pojawia się raz w rankingu
+
+### Ulepszone UI:
+- **Wieloliniowe etykiety**: długie nazwy dzielą się na linijki
+- **Zaawansowane tooltips**: pełne informacje o kategoriach
+- **Status monitoringu**: real-time status wszystkich serwisów
 
 ## 🛠️ Dodatkowe komendy
 
