@@ -47,84 +47,95 @@ class OrderSimulator:
         """Generuje listę produktów"""
         products = []
         
-        # Realistyczne produkty dla każdej kategorii z odpowiednimi cenami
-        product_templates = {
-            'Electronics': {
-                'products': [
-                    'Wireless Bluetooth Headphones', 'Smart LED TV', 'Gaming Mechanical Keyboard',
-                    'USB-C Power Bank', 'Smartphone Case', 'Wireless Charging Pad',
-                    'Bluetooth Speaker', 'Digital Camera', 'Laptop Stand', 'Smart Watch'
-                ],
-                'base_price_range': (49.99, 899.99)  # Elektronika: $50-900
-            },
-            'Clothing': {
-                'products': [
-                    'Cotton T-Shirt', 'Denim Jeans', 'Winter Jacket', 'Running Sneakers',
-                    'Wool Sweater', 'Leather Boots', 'Summer Dress', 'Baseball Cap',
-                    'Casual Hoodie', 'Canvas Backpack'
-                ],
-                'base_price_range': (12.99, 179.99)  # Ubrania: $13-180
-            },
-            'Books': {
-                'products': [
-                    'Programming Guide', 'Mystery Novel', 'Science Fiction Book', 'Cookbook',
-                    'History Encyclopedia', 'Self-Help Book', 'Art Album', 'Travel Guide',
-                    'Biography', 'Poetry Collection'
-                ],
-                'base_price_range': (8.99, 49.99)  # Książki: $9-50
-            },
-            'Home': {
-                'products': [
-                    'Coffee Maker', 'Table Lamp', 'Throw Pillow', 'Kitchen Knife Set',
-                    'Ceramic Vase', 'Wall Clock', 'Storage Box', 'Candle Set',
-                    'Picture Frame', 'Bed Sheets'
-                ],
-                'base_price_range': (19.99, 299.99)  # Dom: $20-300
-            },
-            'Sports': {
-                'products': [
-                    'Yoga Mat', 'Dumbbells Set', 'Tennis Racket', 'Basketball',
-                    'Running Shoes', 'Fitness Tracker', 'Water Bottle', 'Gym Bag',
-                    'Exercise Ball', 'Resistance Bands'
-                ],
-                'base_price_range': (15.99, 249.99)  # Sport: $16-250
-            },
-            'Beauty': {
-                'products': [
-                    'Face Moisturizer', 'Lip Balm', 'Shampoo', 'Perfume',
-                    'Makeup Brush Set', 'Sunscreen', 'Hair Conditioner', 'Face Mask',
-                    'Nail Polish', 'Essential Oil'
-                ],
-                'base_price_range': (6.99, 89.99)  # Kosmetyki: $7-90
-            }
-        }
-        
-        # Generuj produkty używając predefiniowanych nazw i realistycznych cen
-        product_id = 1
-        for category, category_data in product_templates.items():
-            product_names = category_data['products']
-            min_price, max_price = category_data['base_price_range']
+        # Konkretne produkty z konkretnymi, realistycznymi cenami
+        product_list = [
+            # Electronics
+            {'name': 'Wireless Bluetooth Headphones', 'category': 'Electronics', 'price': 79.99},
+            {'name': 'Smart LED TV', 'category': 'Electronics', 'price': 649.99},
+            {'name': 'Gaming Mechanical Keyboard', 'category': 'Electronics', 'price': 129.99},
+            {'name': 'USB-C Power Bank', 'category': 'Electronics', 'price': 39.99},
+            {'name': 'Smartphone Case', 'category': 'Electronics', 'price': 24.99},
+            {'name': 'Wireless Charging Pad', 'category': 'Electronics', 'price': 34.99},
+            {'name': 'Bluetooth Speaker', 'category': 'Electronics', 'price': 89.99},
+            {'name': 'Digital Camera', 'category': 'Electronics', 'price': 449.99},
+            {'name': 'Laptop Stand', 'category': 'Electronics', 'price': 59.99},
+            {'name': 'Smart Watch', 'category': 'Electronics', 'price': 299.99},
             
-            for name in product_names:
-                if product_id > self.product_count:
-                    break
-                    
-                # Losowa cena z odpowiedniego przedziału dla kategorii
-                base_price = round(random.uniform(min_price, max_price), 2)
-                
-                product = {
-                    'id': f'PROD-{product_id:03d}',
-                    'name': name,
-                    'category': category,
-                    'base_price': base_price
-                }
-                products.append(product)
-                product_id += 1
-                
-            if product_id > self.product_count:
-                break
+            # Clothing
+            {'name': 'Cotton T-Shirt', 'category': 'Clothing', 'price': 19.99},
+            {'name': 'Denim Jeans', 'category': 'Clothing', 'price': 69.99},
+            {'name': 'Winter Jacket', 'category': 'Clothing', 'price': 149.99},
+            {'name': 'Running Sneakers', 'category': 'Clothing', 'price': 119.99},
+            {'name': 'Wool Sweater', 'category': 'Clothing', 'price': 79.99},
+            {'name': 'Leather Boots', 'category': 'Clothing', 'price': 159.99},
+            {'name': 'Summer Dress', 'category': 'Clothing', 'price': 49.99},
+            {'name': 'Baseball Cap', 'category': 'Clothing', 'price': 24.99},
+            {'name': 'Casual Hoodie', 'category': 'Clothing', 'price': 59.99},
+            {'name': 'Canvas Backpack', 'category': 'Clothing', 'price': 89.99},
+            
+            # Books
+            {'name': 'Programming Guide', 'category': 'Books', 'price': 39.99},
+            {'name': 'Mystery Novel', 'category': 'Books', 'price': 14.99},
+            {'name': 'Science Fiction Book', 'category': 'Books', 'price': 16.99},
+            {'name': 'Cookbook', 'category': 'Books', 'price': 29.99},
+            {'name': 'History Encyclopedia', 'category': 'Books', 'price': 49.99},
+            {'name': 'Self-Help Book', 'category': 'Books', 'price': 22.99},
+            {'name': 'Art Album', 'category': 'Books', 'price': 44.99},
+            {'name': 'Travel Guide', 'category': 'Books', 'price': 26.99},
+            {'name': 'Biography', 'category': 'Books', 'price': 19.99},
+            {'name': 'Poetry Collection', 'category': 'Books', 'price': 12.99},
+            
+            # Home
+            {'name': 'Coffee Maker', 'category': 'Home', 'price': 179.99},
+            {'name': 'Table Lamp', 'category': 'Home', 'price': 69.99},
+            {'name': 'Throw Pillow', 'category': 'Home', 'price': 29.99},
+            {'name': 'Kitchen Knife Set', 'category': 'Home', 'price': 89.99},
+            {'name': 'Ceramic Vase', 'category': 'Home', 'price': 39.99},
+            {'name': 'Wall Clock', 'category': 'Home', 'price': 49.99},
+            {'name': 'Storage Box', 'category': 'Home', 'price': 34.99},
+            {'name': 'Candle Set', 'category': 'Home', 'price': 24.99},
+            {'name': 'Picture Frame', 'category': 'Home', 'price': 19.99},
+            {'name': 'Bed Sheets', 'category': 'Home', 'price': 54.99},
+            
+            # Sports
+            {'name': 'Yoga Mat', 'category': 'Sports', 'price': 34.99},
+            {'name': 'Dumbbells Set', 'category': 'Sports', 'price': 149.99},
+            {'name': 'Tennis Racket', 'category': 'Sports', 'price': 89.99},
+            {'name': 'Basketball', 'category': 'Sports', 'price': 24.99},
+            {'name': 'Running Shoes', 'category': 'Sports', 'price': 129.99},
+            {'name': 'Fitness Tracker', 'category': 'Sports', 'price': 199.99},
+            {'name': 'Water Bottle', 'category': 'Sports', 'price': 18.99},
+            {'name': 'Gym Bag', 'category': 'Sports', 'price': 44.99},
+            {'name': 'Exercise Ball', 'category': 'Sports', 'price': 29.99},
+            {'name': 'Resistance Bands', 'category': 'Sports', 'price': 22.99},
+            
+            # Beauty
+            {'name': 'Face Moisturizer', 'category': 'Beauty', 'price': 32.99},
+            {'name': 'Lip Balm', 'category': 'Beauty', 'price': 7.99},
+            {'name': 'Shampoo', 'category': 'Beauty', 'price': 16.99},
+            {'name': 'Perfume', 'category': 'Beauty', 'price': 79.99},
+            {'name': 'Makeup Brush Set', 'category': 'Beauty', 'price': 49.99},
+            {'name': 'Sunscreen', 'category': 'Beauty', 'price': 19.99},
+            {'name': 'Hair Conditioner', 'category': 'Beauty', 'price': 18.99},
+            {'name': 'Face Mask', 'category': 'Beauty', 'price': 12.99},
+            {'name': 'Nail Polish', 'category': 'Beauty', 'price': 9.99},
+            {'name': 'Essential Oil', 'category': 'Beauty', 'price': 24.99}
+        ]
         
-        # Jeśli potrzebujemy więcej produktów, dodaj warianty z markami/modelami
+        # Twórz produkty z konkretnych definicji
+        for i, product_data in enumerate(product_list):
+            if i >= self.product_count:
+                break
+                
+            product = {
+                'id': f'PROD-{i + 1:03d}',
+                'name': product_data['name'],
+                'category': product_data['category'],
+                'base_price': product_data['price']
+            }
+            products.append(product)
+        
+        # Jeśli potrzebujemy więcej produktów, dodaj warianty
         if len(products) < self.product_count:
             brands = ['Premium', 'Pro', 'Elite', 'Classic', 'Essential', 'Deluxe']
             colors = ['Black', 'White', 'Blue', 'Red', 'Silver', 'Gold']
@@ -136,9 +147,14 @@ class OrderSimulator:
                 if random.choice([True, False]):
                     variant_name += f" - {random.choice(colors)}"
                 
-                # Warianty kosztują 80-150% ceny bazowej (Premium droższe, Essential tańsze)
-                price_multiplier = random.uniform(0.8, 1.5)
-                variant_price = round(base_product['base_price'] * price_multiplier, 2)
+                # Warianty mają stałe mnożniki cenowe
+                brand_multipliers = {
+                    'Premium': 1.3, 'Pro': 1.25, 'Elite': 1.4, 
+                    'Classic': 1.0, 'Essential': 0.8, 'Deluxe': 1.35
+                }
+                brand = variant_name.split()[0]
+                multiplier = brand_multipliers.get(brand, 1.0)
+                variant_price = round(base_product['base_price'] * multiplier, 2)
                 
                 product = {
                     'id': f'PROD-{len(products) + 1:03d}',
@@ -148,7 +164,7 @@ class OrderSimulator:
                 }
                 products.append(product)
         
-        return products[:self.product_count]  # Zwróć dokładnie tyle ile potrzeba
+        return products[:self.product_count]
     
     def _generate_product_weights(self):
         """Generuje wagi dla produktów - niektóre będą popularniejsze"""
@@ -192,9 +208,8 @@ class OrderSimulator:
         # Wybierz produkt na podstawie wag (popularności)
         product = random.choices(self.products, weights=self.product_weights)[0]
         
-        # Dodaj losową wariację do ceny bazowej
-        price_variation = random.uniform(0.8, 1.2)
-        final_price = round(product['base_price'] * price_variation, 2)
+        # Używaj stałej ceny produktu bez wariacji
+        final_price = product['base_price']
         
         order = {
             'order_id': f'ORDER-{self.order_counter:06d}',
