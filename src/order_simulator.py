@@ -20,9 +20,9 @@ class OrderSimulator:
     def __init__(self):
         self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
         self.topic = os.getenv('KAFKA_TOPIC', 'orders')
-        # Zmieniam na znacznie niższą częstotliwość - średnio co 15-30 sekund
-        self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '8'))  # min 8 sekund
-        self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '25'))  # max 25 sekund
+        # Zmieniam na częstsze zamówienia - średnio co 3-8 sekund
+        self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '3'))  # min 3 sekundy
+        self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '8'))  # max 8 sekund
         self.product_count = int(os.getenv('PRODUCT_COUNT', '50'))
         
         self.fake = Faker()
@@ -215,7 +215,7 @@ class OrderSimulator:
                 order = self._generate_order()
                 self.send_order(order)
                 
-                # Losowy czas oczekiwania między zamówieniami (8-25 sekund)
+                # Losowy czas oczekiwania między zamówieniami (3-8 sekund)
                 sleep_time = random.uniform(self.min_interval, self.max_interval)
                 
                 logger.debug(f"Czekam {sleep_time:.1f} sekund do następnego zamówienia...")

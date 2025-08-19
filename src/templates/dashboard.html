@@ -404,8 +404,10 @@
                 return;
             }
             
-            // Limit to top 8 products to prevent overcrowding
-            const topProducts = products.slice(0, 8);
+            // Sort by total_quantity (items sold) instead of order_count and limit to top 8 products
+            const sortedProducts = products.sort((a, b) => b.total_quantity - a.total_quantity);
+            const topProducts = sortedProducts.slice(0, 8);
+            
             const labels = topProducts.map(p => {
                 // Split long product names into multiple lines instead of truncating
                 const name = p.product_name;
@@ -425,10 +427,12 @@
                 }
                 return name; // Short names stay on one line
             });
-            const data = topProducts.map(p => p.order_count);
+            // Use total_quantity instead of order_count for the bar chart
+            const data = topProducts.map(p => p.total_quantity);
             
             topProductsChart.data.labels = labels;
             topProductsChart.data.datasets[0].data = data;
+            topProductsChart.data.datasets[0].label = 'Items Sold'; // Update label
             topProductsChart.update('none'); // No animation for better performance
         }
         
