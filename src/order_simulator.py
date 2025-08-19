@@ -20,7 +20,9 @@ class OrderSimulator:
     def __init__(self):
         self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
         self.topic = os.getenv('KAFKA_TOPIC', 'orders')
-        self.orders_per_second = float(os.getenv('ORDERS_PER_SECOND', '2'))
+        # Zmieniam na znacznie niższą częstotliwość - średnio co 15-30 sekund
+        self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '8'))  # min 8 sekund
+        self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '25'))  # max 25 sekund
         self.product_count = int(os.getenv('PRODUCT_COUNT', '50'))
         
         self.fake = Faker()
@@ -203,25 +205,21 @@ class OrderSimulator:
     def run(self):
         """Główna pętla symulatora"""
         logger.info("Rozpoczynanie symulatora zamówień...")
-        logger.info(f"Wysyłanie {self.orders_per_second} zamówień na sekundę do topiku '{self.topic}'")
+        logger.info(f"Wysyłanie zamówień w losowych odstępach {self.min_interval}-{self.max_interval} sekund")
         
         self._connect_kafka()
         
-        interval = 1.0 / self.orders_per_second
-        
         try:
             while self.running:
-                start_time = time.time()
-                
+                # Generuj i wyślij zamówienie
                 order = self._generate_order()
                 self.send_order(order)
                 
-                # Oblicz ile czasu zająć powinno czekanie
-                elapsed = time.time() - start_time
-                sleep_time = max(0, interval - elapsed)
+                # Losowy czas oczekiwania między zamówieniami (8-25 sekund)
+                sleep_time = random.uniform(self.min_interval, self.max_interval)
                 
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
+                logger.debug(f"Czekam {sleep_time:.1f} sekund do następnego zamówienia...")
+                time.sleep(sleep_time)
                     
         except KeyboardInterrupt:
             logger.info("Zatrzymywanie symulatora...")

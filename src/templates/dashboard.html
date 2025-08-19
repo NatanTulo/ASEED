@@ -354,6 +354,22 @@
                                 padding: 8,
                                 usePointStyle: true
                             }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const category = context.label;
+                                    const orderCount = context.parsed;
+                                    const categoryData = categoriesChart.categoryDetails[context.dataIndex];
+                                    
+                                    return [
+                                        `${category}: ${orderCount} orders`,
+                                        `Items sold: ${categoryData.total_quantity}`,
+                                        `Revenue: $${categoryData.total_revenue.toFixed(2)}`,
+                                        `Products: ${categoryData.unique_products}`
+                                    ];
+                                }
+                            }
                         }
                     },
                     layout: {
@@ -366,6 +382,9 @@
                     }
                 }
             });
+            
+            // Store category details for tooltips
+            categoriesChart.categoryDetails = [];
         }
         
         // Update metrics
@@ -419,17 +438,29 @@
                 // Show empty state with fixed structure
                 categoriesChart.data.labels = ['No data'];
                 categoriesChart.data.datasets[0].data = [1];
+                categoriesChart.categoryDetails = [];
                 categoriesChart.update('none'); // No animation for better performance
                 return;
             }
             
-            // Limit to top 6 categories for better visibility
-            const topCategories = categories.slice(0, 6);
+            // Sort by order count instead of revenue and limit to top 6 categories
+            const sortedCategories = categories.sort((a, b) => b.order_count - a.order_count);
+            const topCategories = sortedCategories.slice(0, 6);
+            
             const labels = topCategories.map(c => c.category);
-            const data = topCategories.map(c => c.total_revenue);
+            // Use order_count instead of total_revenue for the pie chart
+            const data = topCategories.map(c => c.order_count);
             
             categoriesChart.data.labels = labels;
             categoriesChart.data.datasets[0].data = data;
+            
+            // Store detailed data for tooltips
+            categoriesChart.categoryDetails = topCategories.map(c => ({
+                total_quantity: c.total_quantity,
+                total_revenue: c.total_revenue,
+                unique_products: c.unique_products
+            }));
+            
             categoriesChart.update('none'); // No animation for better performance
         }
         
