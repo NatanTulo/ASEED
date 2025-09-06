@@ -12,6 +12,9 @@ services:
       - aseed-network
     volumes:
       - ./logs:/logs
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+      - confluent-cache:/etc/confluent
     logging:
       driver: "json-file"
       options:
@@ -19,11 +22,11 @@ services:
         max-file: "3"
     command: >
       sh -c "
-        # Utwórz plik logu
-        touch /logs/zookeeper.log
+        # Utwórz plik logu z odpowiednimi uprawnieniami
+        touch /logs/zookeeper.log && chmod 666 /logs/zookeeper.log
         
-        # Uruchom Zookeeper z przekierowaniem logów
-        /etc/confluent/docker/run 2>&1 | tee -a /logs/zookeeper.log
+        # Uruchom Zookeeper z przekierowaniem logów (usuń kody kolorów)
+        /etc/confluent/docker/run 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/zookeeper.log
       "
     healthcheck:
       test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
@@ -44,6 +47,7 @@ services:
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      ZOOKEEPER_CLIENT_PORT: 2181
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
@@ -58,6 +62,7 @@ services:
       - aseed-network
     volumes:
       - ./logs:/logs
+      - kafka-data:/var/lib/kafka/data
     logging:
       driver: "json-file"
       options:
@@ -65,11 +70,11 @@ services:
         max-file: "3"
     command: >
       sh -c "
-        # Utwórz plik logu
-        touch /logs/kafka.log
+        # Utwórz plik logu z odpowiednimi uprawnieniami
+        touch /logs/kafka.log && chmod 666 /logs/kafka.log
         
-        # Uruchom Kafka z przekierowaniem logów
-        /etc/confluent/docker/run 2>&1 | tee -a /logs/kafka.log
+        # Uruchom Kafka z przekierowaniem logów (usuń kody kolorów)
+        /etc/confluent/docker/run 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/kafka.log
       "
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
@@ -96,6 +101,8 @@ services:
     volumes:
       - ./src:/opt/spark-apps
       - ./logs:/logs
+      - spark-ivy-cache:/home/spark/.ivy2
+      - maven-cache:/root/.m2
     logging:
       driver: "json-file"
       options:
@@ -106,8 +113,16 @@ services:
         # Utwórz plik logu
         touch /logs/spark-master.log
         
-        # Uruchom Spark Master z przekierowaniem logów (usuń kody kolorów)
-        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/spark-master.log
+        # Ustaw zmienne środowiskowe dla Spark
+        export SPARK_NO_DAEMONIZE=true
+        export SPARK_LOG_LEVEL=INFO
+        export NO_COLOR=1
+        export TERM=dumb
+        
+        # Uruchom Spark Master z poprawnym filtrowaniem ANSI
+        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | 
+        sed -u 's/\x1b\[[0-9;]*[mGKHF]//g' | 
+        tee -a /logs/spark-master.log
       "
     healthcheck:
       test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 8080), timeout=5)"]
@@ -135,6 +150,8 @@ services:
     volumes:
       - ./src:/opt/spark-apps
       - ./logs:/logs
+      - spark-ivy-cache:/home/spark/.ivy2
+      - maven-cache:/root/.m2
     logging:
       driver: "json-file"
       options:
@@ -145,8 +162,16 @@ services:
         # Utwórz plik logu
         touch /logs/spark-worker.log
         
-        # Uruchom Spark Worker z przekierowaniem logów (usuń kody kolorów)
-        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/spark-worker.log
+        # Ustaw zmienne środowiskowe dla Spark
+        export SPARK_NO_DAEMONIZE=true
+        export SPARK_LOG_LEVEL=INFO
+        export NO_COLOR=1
+        export TERM=dumb
+        
+        # Uruchom Spark Worker z poprawnym filtrowaniem ANSI
+        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | 
+        sed -u 's/\x1b\[[0-9;]*[mGKHF]//g' | 
+        tee -a /logs/spark-worker.log
       "
 
   order-simulator:
@@ -166,6 +191,7 @@ services:
       - aseed-network
     volumes:
       - ./logs:/app/logs
+      - pip-cache:/root/.cache/pip
     logging:
       driver: "json-file"
       options:
@@ -198,6 +224,9 @@ services:
     volumes:
       - ./src:/opt/spark-apps
       - ./logs:/logs
+      - spark-ivy-cache:/home/spark/.ivy2
+      - maven-cache:/root/.m2
+      - pip-cache:/root/.cache/pip
     logging:
       driver: "json-file"
       options:
@@ -237,6 +266,7 @@ services:
       - ./logs:/app/logs
       - ./src/templates:/app/src/templates
       - /var/run/docker.sock:/var/run/docker.sock
+      - pip-cache:/root/.cache/pip
     logging:
       driver: "json-file"
       options:
@@ -247,8 +277,17 @@ services:
         # Utwórz plik logu
         touch /app/logs/dashboard.log
         
-        # Uruchom dashboard z przekierowaniem logów (usuń kody kolorów)
-        python src/web_dashboard.py 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /app/logs/dashboard.log
+        # Ustaw zmienne środowiskowe dla Flask bez kolorów
+        export FLASK_ENV=production
+        export PYTHONUNBUFFERED=1
+        export NO_COLOR=1
+        export TERM=dumb
+        unset WERKZEUG_SERVER_FD
+        
+        # Uruchom dashboard z precyzyjnym filtrowaniem ANSI
+        python src/web_dashboard.py 2>&1 | 
+        sed -u 's/\x1b\[[0-9;]*[mGKHF]//g' | 
+        tee -a /app/logs/dashboard.log
       "
 
 networks:
@@ -256,6 +295,13 @@ networks:
     driver: bridge
 
 volumes:
+  # Data volumes
   kafka-data:
   zookeeper-data:
-  spark-logs:
+  zookeeper-logs:
+  
+  # Cache volumes to dramatically speed up container startup
+  maven-cache:
+  spark-ivy-cache:
+  pip-cache:
+  confluent-cache:

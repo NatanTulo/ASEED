@@ -282,7 +282,7 @@ install_system() {
     
     # Utwórz katalogi robocze
     echo -e "${BLUE}Tworzenie katalogów...${NC}"
-    mkdir -p logs pids
+    mkdir -p logs
     
     # Test Docker Compose
     echo -e "${BLUE}Test konfiguracji Docker Compose...${NC}"

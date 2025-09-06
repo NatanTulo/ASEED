@@ -15,7 +15,12 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import logging
 
-# Konfiguracja logowania
+# Wyłącz kolory ANSI na poziomie środowiska
+os.environ['NO_COLOR'] = '1'
+os.environ['TERM'] = 'dumb'
+os.environ['FLASK_ENV'] = 'production'
+
+# Konfiguracja logowania bez kolorów
 log_file = '/app/logs/dashboard.log' if os.path.exists('/app/logs') else 'dashboard.log'
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'aseed-dashboard-secret-key'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 class RealTimeDashboard:
     """Real-time dashboard receiving data from Spark"""
@@ -429,12 +434,23 @@ if __name__ == '__main__':
     # Initialize global dashboard instance
     dashboard = RealTimeDashboard()
     
-    try:
+    # Wyłącz kolory w Werkzeug/Flask na poziomie systemu
+    import logging
+    werkzeug_logger = logging.getLogger('werkzeug')
+    werkzeug_logger.handlers = []  # Usuń domyślne handlery
+    werkzeug_logger.addHandler(logging.FileHandler(log_file))
+    werkzeug_logger.setLevel(logging.INFO)
+    
+    try:        
+        # Uruchom SocketIO z async_mode='threading'
         socketio.run(app, 
                     host=host, 
                     port=port, 
                     debug=False,
+                    use_reloader=False,
+                    log_output=False,
                     allow_unsafe_werkzeug=True)
+        
     except KeyboardInterrupt:
         logger.info("Dashboard zatrzymany")
     except Exception as e:
