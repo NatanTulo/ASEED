@@ -1,0 +1,93 @@
+# Node modules and build artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python cache and build artifacts  
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git files
+.git/
+.gitignore
+
+# Docker files (don't copy into containers)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Local data and logs (will be mounted as volumes)
+logs/
+pids/
+data/
+*.log
+
+# Downloaded packages (will be downloaded in containers)
+kafka_2.13-3.9.0/
+spark-3.5.6-bin-hadoop3/
+*.tgz
+*.tar.gz
+
+# Documentation (not needed in containers)
+README*.md
+TECHNICAL_DOCS*.md
+*.pdf
+docs/
+
+# Test files (not needed in production containers)
+test_*.py
+*_test.py
+tests/
+
+# Legacy files
+aseed.py
+install.sh
+
+# Jupyter notebooks (development only)
+*.ipynb
+.ipynb_checkpoints/
+
+# Environment files with secrets
+.env
+.env.local
+.env.production

@@ -355,5 +355,24 @@ def calculate_metrics():
     pass
 
 if __name__ == '__main__':
-    logger.info("Starting Real-time Spark Dashboard on http://localhost:5005")
-    socketio.run(app, host='0.0.0.0', port=5005, debug=False)
+    logger.info("🚀 Starting ASEED Real-time Dashboard")
+    
+    # Get host and port from environment variables (for Docker)
+    host = os.getenv('FLASK_HOST', '0.0.0.0')
+    port = int(os.getenv('FLASK_PORT', '5005'))
+    
+    logger.info(f"📊 Dashboard będzie dostępny na: http://{host}:{port}")
+    
+    dashboard = RealTimeDashboard()
+    
+    try:
+        socketio.run(app, 
+                    host=host, 
+                    port=port, 
+                    debug=False,
+                    allow_unsafe_werkzeug=True)
+    except KeyboardInterrupt:
+        logger.info("⚠️ Dashboard zatrzymany")
+    except Exception as e:
+        logger.error(f"❌ Błąd dashboardu: {e}")
+        raise

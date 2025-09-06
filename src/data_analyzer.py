@@ -20,9 +20,9 @@ logger = logging.getLogger(__name__)
 class OrderAnalyzer:
     def __init__(self):
         self.spark_master = os.getenv('SPARK_MASTER_URL', 'local[*]')
-        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092')
         self.kafka_topic = os.getenv('KAFKA_TOPIC', 'orders')
-        self.dashboard_url = os.getenv('DASHBOARD_URL', 'http://localhost:5005')
+        self.dashboard_url = os.getenv('DASHBOARD_URL', 'http://web-dashboard:5005')
         
         self.spark = None
         self.running = True

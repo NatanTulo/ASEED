@@ -1,24 +1,153 @@
 # ASEED - Apache Spark + Kafka E-commerce Analytics
 
-🎯 **System analizy zamówień e-commerce w czasie rzeczywistym**
+🎯 **System analizy zamówień e-commerce w czasie rzeczywistym z Docker**
 
-System symuluje realistyczny sklep internetowy wysyłający zamówienia przez Kafka, a Spark analizuje które produkty są najpopularniejsze na podstawie ilości sprzedanych sztuk.
+System symuluje sklep internetowy wysyłający zamówienia przez Kafka, a Spark analizuje które produkty są najpopularniejsze. **Całość działa w kontenerach Docker** dla łatwego wdrożenia.
 
-## 🚀 Użycie
+## 🚀 Użycie z Docker
 
-### 1. Instalacja (jednorazowa)
+### 1. Wymagania
+- Docker 20.10+ 
+- Docker Compose v2+
+- 4GB RAM wolnego
+- Porty: 5005, 8080, 9092, 2181
+
+### 2. Instalacja i uruchomienie
 ```bash
 git clone https://github.com/NatanTulo/ASEED.git
 cd ASEED
-./install.sh
+
+# Jednorazowa instalacja i konfiguracja
+./docker-aseed.sh install
+
+# Uruchom cały system
+./docker-aseed.sh start
+```
+
+**To wszystko! Jeden skrypt załatwia wszystko.** 🎉
+
+### 3. Dostęp do systemu
+- **📊 Dashboard**: http://localhost:5005
+- **⚡ Spark UI**: http://localhost:8080  
+- **📊 Kafka**: localhost:9092
+
+### 4. Zarządzanie systemem
+```bash
+# Status kontenerów
+./docker-aseed.sh status
+
+# Logi systemu
+./docker-aseed.sh logs
+
+# Logi konkretnego serwisu
+./docker-aseed.sh logs web-dashboard
+
+# Restart systemu
+./docker-aseed.sh restart
+
+# Zatrzymanie
+./docker-aseed.sh stop
+
+# Test z danymi
+./docker-aseed.sh test 5 20  # 5 minut, 20 zamówień/min
+
+# Czyszczenie (usuń kontenery i obrazy)
+./docker-aseed.sh cleanup
+```
+
+## 🐳 Architektura kontenerowa
+
+```
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│   Zookeeper     │──▶│     Kafka       │──▶│  Order Simulator│
+│   Container     │   │   Container     │   │    Container    │
+└─────────────────┘   └─────────────────┘   └─────────────────┘
+                              │
+                              ▼
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  Spark Master   │──▶│ Data Analyzer   │──▶│  Web Dashboard  │
+│   Container     │   │   Container     │   │    Container    │
+└─────────────────┘   └─────────────────┘   └─────────────────┘
+```
+
+### Komponenty kontenerowe:
+- **aseed-zookeeper**: Koordynacja Kafka
+- **aseed-kafka**: Message broker 
+- **aseed-spark-master**: Spark cluster manager
+- **aseed-order-simulator**: Generator zamówień (Enhanced)
+- **aseed-data-analyzer**: Spark Structured Streaming
+- **aseed-web-dashboard**: Flask dashboard z WebSocket
+
+## 📁 Struktura plików
+
+```
+ASEED/
+├── docker-compose.yml           # 🐳 Definicja kontenerów
+├── docker-aseed.sh             # 🎯 JEDYNY SKRYPT - install + manage
+├── Dockerfile.python           # Python apps (simulator, dashboard)
+├── Dockerfile.spark            # Spark master
+├── Dockerfile.spark-app        # Spark applications
+├── src/
+│   ├── order_simulator.py          # Generator zamówień podstawowy  
+│   ├── enhanced_order_simulator.py # Generator zaawansowany (UŻYWANY)
+│   ├── data_analyzer.py            # Spark analytics
+│   ├── web_dashboard.py            # Dashboard Flask + WebSocket
+│   ├── test_data_generator.py      # Generator danych testowych
+│   └── templates/dashboard.html    # Interfejs web
+├── analysis_demo.ipynb         # 📓 Notebook demonstracyjny
+├── test_aseed.py              # 🧪 Testy jednostkowe  
+├── TECHNICAL_DOCS_DOCKER.md   # 📋 Dokumentacja Docker
+├── requirements.txt           # Python dependencies
+├── requirements_dev.txt       # Development dependencies
+└── install_legacy.sh          # Instalacja lokalna (deprecated)
+```
+
+## 🛠️ Dodatkowe komendy Docker
+
+### Monitoring
+```bash
+# Logi w czasie rzeczywistym
+./docker-aseed.sh logs
+
+# Status wszystkich kontenerów
+docker ps
+
+# Użycie zasobów
+docker stats
+```
+
+### Debugging
+```bash
+# Wejście do kontenera
+docker exec -it aseed-web-dashboard /bin/bash
+
+# Restart konkretnego serwisu
+./docker-aseed.sh restart-service kafka
+
+# Sprawdzenie sieci
+docker network ls | grep aseed
+```
+
+### API Endpoints
+- `http://localhost:5005` - Dashboard
+- `http://localhost:5005/api/analytics` - JSON z metrykami
+- `http://localhost:5005/api/top-products` - Top sellers
+- `http://localhost:8080` - Spark Master UI
+
+## 🔄 Instalacja lokalna (DEPRECATED)
+
+⚠️ **Uwaga**: Instalacja lokalna jest przestarzała. Użyj Docker!
+
+Jeśli mimo wszystko chcesz uruchomić system lokalnie:
+
+### 1. Instalacja (jednorazowa)
+```bash
+./install.sh  # Wybierz opcję 2 (Lokalny)
 ```
 
 ### 2. Uruchamianie systemu
 ```bash
-# Uruchom wszystko jedną komendą
 python3 aseed.py start
-
-# Dashboard dostępny na: http://localhost:5005
 ```
 
 ### 3. Zatrzymywanie
@@ -26,164 +155,40 @@ python3 aseed.py start
 python3 aseed.py stop
 ```
 
-### 4. Status systemu
-```bash
-python3 aseed.py status
-```
-
-### 5. Restart systemu
-```bash
-python3 aseed.py restart
-```
-
-### 6. Test z danymi (opcjonalnie)
-```bash
-# Generuj dane przez 5 minut, 20 zamówień/min
-python3 aseed.py test --minutes 5 --rate 20
-```
+**Zalecamy przejście na Docker dla lepszego doświadczenia!**
 
 ## 📊 Co system robi?
 
-- **Order Simulator** → generuje realistyczne zamówienia z konkretnymi cenami
-- **Kafka** → przesyła zamówienia w losowych odstępach (3-8 sekund)
-- **Spark** → analizuje produkty według **sprzedanych sztuk** (nie tylko zamówień)
-- **Dashboard** → wykresy w czasie rzeczywistym z pełnymi nazwami produktów
+- **Enhanced Order Simulator** → generuje realistyczne zamówienia z promocjami i trendami
+- **Kafka** → przesyła zamówienia w czasie rzeczywistym
+- **Spark** → analizuje które produkty są top sellers
+- **Dashboard** → pokazuje wyniki na wykresach w czasie rzeczywistym
 
-## 🛍️ Realistyczne produkty i ceny
+## 🧪 Testowanie
 
-System zawiera **60 produktów** w 6 kategoriach z **konkretnymi cenami**:
-
-### Electronics ($25-650):
-- Smart LED TV: $649.99
-- Digital Camera: $449.99  
-- Smart Watch: $299.99
-- Gaming Mechanical Keyboard: $129.99
-- Wireless Bluetooth Headphones: $79.99
-- Smartphone Case: $24.99
-
-### Clothing ($20-160):
-- Leather Boots: $159.99
-- Winter Jacket: $149.99
-- Running Sneakers: $119.99
-- Cotton T-Shirt: $19.99
-
-### Books ($13-50):
-- History Encyclopedia: $49.99
-- Programming Guide: $39.99
-- Mystery Novel: $14.99
-- Poetry Collection: $12.99
-
-### Home ($20-180):
-- Coffee Maker: $179.99
-- Kitchen Knife Set: $89.99
-- Bed Sheets: $54.99
-- Picture Frame: $19.99
-
-### Sports ($19-200):
-- Fitness Tracker: $199.99
-- Dumbbells Set: $149.99
-- Tennis Racket: $89.99
-- Water Bottle: $18.99
-
-### Beauty ($8-80):
-- Perfume: $79.99
-- Makeup Brush Set: $49.99
-- Face Moisturizer: $32.99
-- Lip Balm: $7.99
-
-## 📈 Dashboard Features
-
-### Wykresy:
-- **Top Products** - ranking według **sprzedanych sztuk** (nie zamówień)
-- **Categories** - wykres kołowy według zamówień z szczegółowymi tooltipami
-- **Real-time Orders** - ostatnie 10 zamówień na żywo
-
-### Tooltips w wykresach:
-Po najechaniu na kategorię zobaczysz:
-- Liczba zamówień
-- Sprzedane sztuki  
-- Przychody
-- Unikalne produkty
-
-### Nazwy produktów:
-- Długie nazwy dzielą się na kilka linijek
-- Pełne nazwy bez skrótów typu "..."
-
-## 🔧 Architektura
-
-```
-📱 Simulator → 📡 Kafka → ⚡ Spark → 📊 Dashboard
-   (3-8s)      (stream)   (analyze)   (real-time)
-```
-
-### Komponenty:
-- **Zookeeper** + **Kafka** - infrastruktura messaging
-- **Order Simulator** - generator realistycznych zamówień
-- **Data Analyzer** - Spark agregacja globalnych statystyk
-- **Web Dashboard** - Flask + Chart.js + WebSocket
-
-## 📁 Struktura plików
-
-```
-ASEED/
-├── aseed.py                     # 🎯 GŁÓWNY SKRYPT - uruchamiaj tutaj!
-├── src/
-│   ├── order_simulator.py          # Generator zamówień podstawowy
-│   ├── enhanced_order_simulator.py # Generator zaawansowany (promocje, trendy)
-│   ├── data_analyzer.py            # Spark analytics + zaawansowane funkcje
-│   ├── web_dashboard.py            # Dashboard Flask + WebSocket
-│   ├── test_data_generator.py      # Generator danych testowych
-│   └── templates/dashboard.html    # Interfejs web (real-time)
-├── analysis_demo.ipynb         # 📓 Notebook demonstracyjny
-├── test_aseed.py              # 🧪 Testy jednostkowe
-├── TECHNICAL_DOCS.md          # 📋 Dokumentacja techniczna
-├── logs/                      # Logi wszystkich serwisów
-├── pids/                      # PIDs procesów
-└── install.sh                # Instalacja zależności
-```
-
-## 🎯 Kluczowe usprawnienia
-
-### Realistyczne zamówienia:
-- **Losowe interwały**: 3-8 sekund między zamówieniami
-- **Stałe ceny**: każdy produkt ma swoją konkretną cenę
-- **Sensowne nazwy**: "Wireless Bluetooth Headphones" zamiast losowych słów
-
-### Inteligentne analizy:
-- **Sprzedane sztuki**: wykres pokazuje łączną liczbę sprzedanych produktów
-- **Globalna agregacja**: wszystkie zamówienia od uruchomienia systemu
-- **Bez duplikatów**: każdy produkt pojawia się raz w rankingu
-
-### Ulepszone UI:
-- **Wieloliniowe etykiety**: długie nazwy dzielą się na linijki
-- **Zaawansowane tooltips**: pełne informacje o kategoriach
-- **Status monitoringu**: real-time status wszystkich serwisów
-
-## 🛠️ Dodatkowe komendy
-
-### Monitoring
+### Docker
 ```bash
-# Logi w czasie rzeczywistym
-tail -f logs/*.log
+# Test generowania danych
+./docker-aseed.sh test 3 15
 
-# Status procesów
-ps aux | grep -E "kafka|python"
+# Testy jednostkowe
+docker run --rm -v $(pwd):/app aseed_order-simulator python test_aseed.py
 ```
 
-### API Endpoints
-- `http://localhost:5005` - Dashboard
-- `http://localhost:5005/api/analytics` - JSON z metrykami
-- `http://localhost:5005/api/top-products` - Top sellers
-
-### Dodatkowe funkcje
-- **Enhanced Simulator**: Promocje, sezonowość, segmenty klientów
-- **Zaawansowane analizy**: Trendy godzinowe, skuteczność promocji
-- **Jupyter Notebook**: Demonstracja konceptów (`analysis_demo.ipynb`)
-- **Testy jednostkowe**: Walidacja funkcji (`python3 test_aseed.py`)
-- **Dokumentacja techniczna**: Pełna architektura (`TECHNICAL_DOCS.md`)
+### Lokalne
+```bash
+python3 test_aseed.py
+```
 
 ## 🐛 Problemy?
 
+### Docker
+1. **Port zajęty**: `./docker-aseed.sh stop && ./docker-aseed.sh cleanup`
+2. **Brak pamięci**: Zwiększ pamięć w Docker Desktop (min 4GB)
+3. **Brak Docker**: Zainstaluj Docker Desktop
+4. **Logi błędów**: `./docker-aseed.sh logs [service-name]`
+
+### Lokalne
 1. **Port zajęty**: `pkill -f kafka` i spróbuj ponownie
 2. **Brak Javy**: `sudo apt install openjdk-11-jdk`
 3. **Brak Python**: Zainstaluj Python 3.8+
@@ -193,10 +198,11 @@ ps aux | grep -E "kafka|python"
 
 System zgodny z wymaganiami:
 - **Kafka topic**: zamówienia (order_id, product_id, price, timestamp)
-- **Spark Streaming**: aggregacje w czasie rzeczywistym  
+- **Spark Streaming**: agregacje w czasie rzeczywistym  
 - **Top products**: ranking najpopularniejszych produktów
 - **ETL patterns**: Kafka → Spark → Dashboard
+- **Containerization**: Wszystkie komponenty w Docker
 
 ---
 
-**Jeden skrypt, jeden dashboard, wszystko działa! 🎉**
+**🐳 Jeden skrypt Docker, jeden dashboard, wszystko działa w kontenerach! 🎉**
