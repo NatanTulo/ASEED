@@ -301,8 +301,8 @@ services:
         max-file: "3"
     command: >
       sh -c "
-        # Utwórz plik logu
-        touch /logs/data_analyzer.log
+        # Utwórz plik logu z odpowiednimi uprawnieniami
+        touch /logs/data_analyzer.log && chmod 666 /logs/data_analyzer.log
         
         # Uruchom analyzer z przekierowaniem logów (usuń kody kolorów)
         python /opt/spark-apps/data_analyzer.py 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/data_analyzer.log
