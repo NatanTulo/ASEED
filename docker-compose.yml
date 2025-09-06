@@ -3,11 +3,20 @@ services:
     image: confluentinc/cp-zookeeper:7.4.0
     hostname: zookeeper
     container_name: aseed-zookeeper
+    restart: unless-stopped
     ports:
       - "2181:2181"
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+      # Automatyczne czyszczenie starych sesji
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      # Krótszy czas sesji - szybsze wykrywanie rozłączeń
+      ZOOKEEPER_MAX_SESSION_TIMEOUT: 10000
+      # Czyszczenie snapshot'ów
+      ZOOKEEPER_AUTOPURGE_PURGEINTERVAL: 1
+      ZOOKEEPER_AUTOPURGE_SNAPRETAINCOUNT: 3
     networks:
       - aseed-network
     volumes:
@@ -25,19 +34,23 @@ services:
         # Utwórz plik logu z odpowiednimi uprawnieniami
         touch /logs/zookeeper.log && chmod 666 /logs/zookeeper.log
         
+        echo 'Uruchamiam ZooKeeper...' | tee -a /logs/zookeeper.log
+        
         # Uruchom Zookeeper z przekierowaniem logów (usuń kody kolorów)
-        /etc/confluent/docker/run 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/zookeeper.log
+        /etc/confluent/docker/run 2>&1 | sed -u 's/\x1b\[[0-9;]*[mGKHF]//g' | tee -a /logs/zookeeper.log
       "
     healthcheck:
-      test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
+      test: ["CMD", "sh", "-c", "echo 'srvr' | nc localhost 2181 | grep -q 'Mode'"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
 
   kafka:
     image: confluentinc/cp-kafka:7.4.0
     hostname: kafka
     container_name: aseed-kafka
+    restart: unless-stopped
     depends_on:
       zookeeper:
         condition: service_healthy
@@ -58,6 +71,14 @@ services:
       KAFKA_JMX_HOSTNAME: localhost
       KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
       KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
+      # Konfiguracja dla czystego startu
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_LOG_CLEANUP_POLICY: delete
+      KAFKA_LOG_RETENTION_HOURS: 1
+      # Timeout dla ZooKeeper - szybsze wykrywanie problemów
+      KAFKA_ZOOKEEPER_SESSION_TIMEOUT_MS: 6000
+      KAFKA_ZOOKEEPER_CONNECTION_TIMEOUT_MS: 6000
     networks:
       - aseed-network
     volumes:
@@ -73,14 +94,54 @@ services:
         # Utwórz plik logu z odpowiednimi uprawnieniami
         touch /logs/kafka.log && chmod 666 /logs/kafka.log
         
+        echo 'Czekanie na gotowość ZooKeeper...' | tee -a /logs/kafka.log
+        
+        # Poczekaj na ZooKeeper (używając srvr zamiast ruok)
+        until echo 'srvr' | nc zookeeper 2181 | grep -q 'Mode'; do
+          echo 'ZooKeeper nie jest gotowy, czekanie 3s...' | tee -a /logs/kafka.log
+          sleep 3
+        done
+        
+        echo 'ZooKeeper jest gotowy, uruchamiam Kafka...' | tee -a /logs/kafka.log
+        
         # Uruchom Kafka z przekierowaniem logów (usuń kody kolorów)
-        /etc/confluent/docker/run 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/kafka.log
+        /etc/confluent/docker/run 2>&1 | sed -u 's/\x1b\[[0-9;]*[mGKHF]//g' | tee -a /logs/kafka.log
       "
     healthcheck:
-      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
-      interval: 30s
+      test: ["CMD", "sh", "-c", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 60s
+
+  # Init kontener do sprawdzania stanu ZooKeeper/Kafka
+  kafka-init:
+    image: confluentinc/cp-kafka:7.4.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - aseed-network
+    volumes:
+      - ./logs:/logs
+    command: >
+      sh -c "
+        echo 'Sprawdzanie gotowości Kafka...' | tee -a /logs/kafka-init.log
+        
+        # Sprawdź czy Kafka jest gotowa
+        until kafka-broker-api-versions --bootstrap-server kafka:9092; do
+          echo 'Kafka nie jest gotowa, czekanie 5s...' | tee -a /logs/kafka-init.log
+          sleep 5
+        done
+        
+        echo 'Kafka jest gotowa!' | tee -a /logs/kafka-init.log
+        
+        # Utworzenie podstawowych topików jeśli nie istnieją
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic orders --partitions 1 --replication-factor 1 || true
+        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic processed-orders --partitions 1 --replication-factor 1 || true
+        
+        echo 'Kafka init zakończony pomyślnie' | tee -a /logs/kafka-init.log
+      "
 
   spark-master:
     build:
@@ -88,6 +149,7 @@ services:
       dockerfile: Dockerfile.spark
     hostname: spark-master
     container_name: aseed-spark-master
+    restart: unless-stopped
     ports:
       - "8080:8080"
       - "7077:7077"
@@ -136,9 +198,12 @@ services:
       dockerfile: Dockerfile.spark
     hostname: spark-worker
     container_name: aseed-spark-worker
+    restart: unless-stopped
     depends_on:
       spark-master:
-        condition: service_started
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
@@ -179,9 +244,10 @@ services:
       context: .
       dockerfile: Dockerfile.python
     container_name: aseed-order-simulator
+    restart: unless-stopped
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC=orders
@@ -211,9 +277,10 @@ services:
       context: .
       dockerfile: Dockerfile.spark-app
     container_name: aseed-data-analyzer
+    restart: unless-stopped
     depends_on:
-      kafka:
-        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
       spark-master:
         condition: service_healthy
     environment:
@@ -251,10 +318,12 @@ services:
       context: .
       dockerfile: Dockerfile.python
     container_name: aseed-web-dashboard
+    restart: unless-stopped
     ports:
       - "5005:5005"
     depends_on:
-      - kafka
+      kafka-init:
+        condition: service_completed_successfully
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - FLASK_ENV=production
