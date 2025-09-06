@@ -56,15 +56,10 @@ Dockerfile*
 docker-compose*.yml
 .dockerignore
 
-# Local data and logs (will be mounted as volumes)
-logs/
-pids/
+# Local data (will be mounted as volumes)
 data/
-*.log
 
-# Downloaded packages (will be downloaded in containers)
-kafka_2.13-3.9.0/
-spark-3.5.6-bin-hadoop3/
+# Downloaded packages (already included in Docker images)
 *.tgz
 *.tar.gz
 
@@ -79,15 +74,7 @@ test_*.py
 *_test.py
 tests/
 
-# Legacy files
-aseed.py
-install.sh
-
-# Jupyter notebooks (development only)
-*.ipynb
-.ipynb_checkpoints/
-
-# Environment files with secrets
+# Environment files
 .env
 .env.local
 .env.production

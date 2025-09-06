@@ -9,7 +9,6 @@ import json
 import time
 import threading
 import subprocess
-import psutil
 from datetime import datetime, timedelta
 from collections import defaultdict, deque
 from flask import Flask, render_template, request, jsonify
@@ -113,72 +112,112 @@ class RealTimeDashboard:
         logger.info("🔍 Monitoring serwisów uruchomiony")
     
     def _check_service_status(self):
-        """Check status of all ASEED services"""
-        pids_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'pids')
-        
-        service_files = {
-            'zookeeper': 'zookeeper.pid',
-            'kafka': 'kafka.pid', 
-            'order_simulator': 'order_simulator.pid',
-            'data_analyzer': 'data_analyzer.pid'
-        }
-        
-        for service, pid_file in service_files.items():
-            pid_path = os.path.join(pids_dir, pid_file)
+        """Check status of all ASEED Docker containers"""
+        try:
+            # Get Docker container statuses
+            result = subprocess.run(['docker', 'ps', '--filter', 'name=aseed-', '--format', 'table {{.Names}}\t{{.Status}}\t{{.ID}}'], 
+                                  capture_output=True, text=True, timeout=10)
             
-            try:
-                if os.path.exists(pid_path):
-                    with open(pid_path, 'r') as f:
-                        pid = int(f.read().strip())
-                    
-                    # Check if process is running
-                    if psutil.pid_exists(pid):
-                        try:
-                            proc = psutil.Process(pid)
-                            if proc.is_running():
-                                self.service_status[service] = {
-                                    'status': 'running',
-                                    'pid': pid,
-                                    'last_check': datetime.now(),
-                                    'memory_mb': round(proc.memory_info().rss / 1024 / 1024, 1),
-                                    'cpu_percent': round(proc.cpu_percent(), 1)
-                                }
-                            else:
-                                self.service_status[service] = {
-                                    'status': 'stopped',
-                                    'pid': None,
-                                    'last_check': datetime.now()
-                                }
-                        except (psutil.NoSuchProcess, psutil.AccessDenied):
-                            self.service_status[service] = {
-                                'status': 'stopped',
-                                'pid': None,
-                                'last_check': datetime.now()
-                            }
-                    else:
+            if result.returncode != 0:
+                logger.error(f"Docker ps command failed: {result.stderr}")
+                # Set all services to error state
+                for service in self.service_status:
+                    if service != 'dashboard':
                         self.service_status[service] = {
-                            'status': 'stopped',
+                            'status': 'error',
                             'pid': None,
-                            'last_check': datetime.now()
+                            'last_check': datetime.now(),
+                            'error': 'Docker not available'
                         }
+                return
+            
+            # Parse container info
+            container_info = {}
+            lines = result.stdout.strip().split('\n')[1:]  # Skip header
+            
+            for line in lines:
+                if line.strip():
+                    # Split by whitespace and extract name, status, and container ID
+                    parts = line.split()
+                    if len(parts) >= 3:
+                        name = parts[0]  # First part is container name
+                        # Status is everything except first and last part
+                        status = ' '.join(parts[1:-1])  # Middle parts are status
+                        container_id = parts[-1]  # Last part is container ID
+                        
+                        # Map container names to service names
+                        service_name = None
+                        if 'zookeeper' in name:
+                            service_name = 'zookeeper'
+                        elif 'kafka' in name:
+                            service_name = 'kafka'
+                        elif 'order-simulator' in name:
+                            service_name = 'order_simulator'
+                        elif 'data-analyzer' in name:
+                            service_name = 'data_analyzer'
+                        elif 'web-dashboard' in name:
+                            continue  # Skip dashboard - we handle it separately
+                        
+                        if service_name:
+                            # Determine status from Docker status
+                            if 'Up' in status and 'healthy' in status:
+                                container_status = 'running'
+                            elif 'Up' in status:
+                                container_status = 'running'
+                            elif 'Exited' in status:
+                                container_status = 'stopped'
+                            else:
+                                container_status = 'unknown'
+                            
+                            container_info[service_name] = {
+                                'status': container_status,
+                                'pid': container_id,  # Use container ID as PID equivalent
+                                'last_check': datetime.now(),
+                                'docker_status': status
+                            }
+            
+            # Update service status for all known services
+            for service in ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer']:
+                if service in container_info:
+                    self.service_status[service] = container_info[service]
                 else:
+                    # Container not running or not found
                     self.service_status[service] = {
                         'status': 'not_started',
                         'pid': None,
                         'last_check': datetime.now()
                     }
             
-            except Exception as e:
-                logger.error(f"Error checking {service} status: {e}")
-                self.service_status[service] = {
-                    'status': 'error',
-                    'pid': None,
-                    'last_check': datetime.now(),
-                    'error': str(e)
-                }
+        except subprocess.TimeoutExpired:
+            logger.error("Docker ps command timed out")
+            for service in self.service_status:
+                if service != 'dashboard':
+                    self.service_status[service] = {
+                        'status': 'error',
+                        'pid': None,
+                        'last_check': datetime.now(),
+                        'error': 'Docker command timeout'
+                    }
+        except Exception as e:
+            logger.error(f"Error checking Docker container status: {e}")
+            for service in self.service_status:
+                if service != 'dashboard':
+                    self.service_status[service] = {
+                        'status': 'error',
+                        'pid': None,
+                        'last_check': datetime.now(),
+                        'error': str(e)
+                    }
 
 # Global dashboard instance
-dashboard = RealTimeDashboard()
+dashboard = None
+
+def get_dashboard():
+    """Get dashboard instance, create if needed"""
+    global dashboard
+    if dashboard is None:
+        dashboard = RealTimeDashboard()
+    return dashboard
 
 @app.route('/')
 def index():
@@ -188,40 +227,43 @@ def index():
 @app.route('/api/status')
 def api_status():
     """API endpoint for system status"""
+    dash = get_dashboard()
     return jsonify({
         'status': 'running',
         'timestamp': datetime.now().isoformat(),
-        'total_orders': dashboard.total_orders,
-        'total_revenue': dashboard.total_revenue,
-        'orders_per_minute': dashboard.orders_per_minute
+        'total_orders': dash.total_orders,
+        'total_revenue': dash.total_revenue,
+        'orders_per_minute': dash.orders_per_minute
     })
 
 @app.route('/api/services')
 def api_services():
     """API endpoint for service status"""
+    dash = get_dashboard()
     return jsonify({
-        'services': dashboard.service_status,
+        'services': dash.service_status,
         'timestamp': datetime.now().isoformat(),
         'overall_status': 'healthy' if all(
-            s['status'] == 'running' for s in dashboard.service_status.values()
+            s['status'] == 'running' for s in dash.service_status.values()
         ) else 'degraded'
     })
 
 @app.route('/api/service-status')
 def get_service_status():
     """API endpoint zwracający status wszystkich serwisów"""
-    dashboard._check_service_status()  # Aktualizuj status przed zwróceniem
+    dash = get_dashboard()
+    dash._check_service_status()  # Aktualizuj status przed zwróceniem
     
     # Konwertuj datetime na string dla JSON
     services_for_api = {}
-    for service, status in dashboard.service_status.items():
+    for service, status in dash.service_status.items():
         services_for_api[service] = {**status}
         if 'last_check' in services_for_api[service] and services_for_api[service]['last_check']:
             services_for_api[service]['last_check'] = services_for_api[service]['last_check'].isoformat()
     
     # Oblicz ogólny status systemu
     all_services = ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer', 'dashboard']
-    running_count = sum(1 for service in all_services if dashboard.service_status[service]['status'] == 'running')
+    running_count = sum(1 for service in all_services if dash.service_status[service]['status'] == 'running')
     
     overall_status = 'healthy' if running_count == len(all_services) else \
                     'partial' if running_count > 0 else 'down'
@@ -242,7 +284,11 @@ def receive_top_products():
     """Receive top products data from Spark"""
     try:
         data = request.json
-        dashboard.latest_top_products = data['products']
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data received'}), 400
+            
+        dash = get_dashboard()
+        dash.latest_top_products = data['products']
         
         logger.info(f"Received {len(data['products'])} top products from Spark")
         
@@ -259,7 +305,11 @@ def receive_categories():
     """Receive categories data from Spark"""
     try:
         data = request.json
-        dashboard.latest_categories = data['categories']
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data received'}), 400
+            
+        dash = get_dashboard()
+        dash.latest_categories = data['categories']
         
         logger.info(f"Received {len(data['categories'])} categories from Spark")
         
@@ -276,34 +326,38 @@ def receive_raw_orders():
     """Receive raw orders data from Spark"""
     try:
         data = request.json
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data received'}), 400
+            
         orders = data['orders']
+        dash = get_dashboard()
         
         # Add to recent orders (limit to last 20 to prevent memory issues)
         current_time = datetime.now()
         for order in orders:
-            dashboard.latest_raw_orders.append(order)
+            dash.latest_raw_orders.append(order)
             # Store timestamp for orders/minute calculation
-            dashboard.order_timestamps.append(current_time)
+            dash.order_timestamps.append(current_time)
         
         # Keep only last 20 orders in memory
-        while len(dashboard.latest_raw_orders) > 20:
-            dashboard.latest_raw_orders.popleft()
+        while len(dash.latest_raw_orders) > 20:
+            dash.latest_raw_orders.popleft()
         
         # Update counters
-        dashboard.total_orders += len(orders)
-        dashboard.total_revenue += sum(order['total_value'] for order in orders)
+        dash.total_orders += len(orders)
+        dash.total_revenue += sum(order['total_value'] for order in orders)
         
         # Update orders/minute immediately for faster response
-        dashboard._update_orders_per_minute()
+        dash._update_orders_per_minute()
         
         logger.info(f"Received {len(orders)} raw orders from Spark")
         
         # Emit to connected clients - send only last 10
         socketio.emit('raw_orders_update', {
-            'orders': list(dashboard.latest_raw_orders),  # All stored orders
-            'total_orders': dashboard.total_orders,
-            'total_revenue': dashboard.total_revenue,
-            'orders_per_minute': dashboard.orders_per_minute
+            'orders': list(dash.latest_raw_orders),  # All stored orders
+            'total_orders': dash.total_orders,
+            'total_revenue': dash.total_revenue,
+            'orders_per_minute': dash.orders_per_minute
         })
         
         return jsonify({'status': 'success'})
@@ -314,14 +368,15 @@ def receive_raw_orders():
 @app.route('/api/dashboard_data')
 def get_dashboard_data():
     """Get all current dashboard data"""
+    dash = get_dashboard()
     return jsonify({
-        'top_products': dashboard.latest_top_products,
-        'categories': dashboard.latest_categories,
-        'recent_orders': list(dashboard.latest_raw_orders),  # All stored orders (max 20)
+        'top_products': dash.latest_top_products,
+        'categories': dash.latest_categories,
+        'recent_orders': list(dash.latest_raw_orders),  # All stored orders (max 20)
         'metrics': {
-            'total_orders': dashboard.total_orders,
-            'total_revenue': dashboard.total_revenue,
-            'orders_per_minute': dashboard.orders_per_minute
+            'total_orders': dash.total_orders,
+            'total_revenue': dash.total_revenue,
+            'orders_per_minute': dash.orders_per_minute
         },
         'timestamp': datetime.now().isoformat()
     })
@@ -331,15 +386,16 @@ def handle_connect():
     """Handle client connection"""
     logger.info('Client connected to dashboard')
     
+    dash = get_dashboard()
     # Send current data to newly connected client
     emit('initial_data', {
-        'top_products': dashboard.latest_top_products,
-        'categories': dashboard.latest_categories,
-        'recent_orders': list(dashboard.latest_raw_orders),  # All stored orders
+        'top_products': dash.latest_top_products,
+        'categories': dash.latest_categories,
+        'recent_orders': list(dash.latest_raw_orders),  # All stored orders
         'metrics': {
-            'total_orders': dashboard.total_orders,
-            'total_revenue': dashboard.total_revenue,
-            'orders_per_minute': dashboard.orders_per_minute
+            'total_orders': dash.total_orders,
+            'total_revenue': dash.total_revenue,
+            'orders_per_minute': dash.orders_per_minute
         }
     })
 
@@ -363,6 +419,7 @@ if __name__ == '__main__':
     
     logger.info(f"📊 Dashboard będzie dostępny na: http://{host}:{port}")
     
+    # Initialize global dashboard instance
     dashboard = RealTimeDashboard()
     
     try:

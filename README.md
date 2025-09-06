@@ -1,6 +1,6 @@
 # ASEED - Apache Spark + Kafka E-commerce Analytics
 
-🎯 **System analizy zamówień e-commerce w czasie rzeczywistym z Docker**
+**System analizy zamówień e-commerce w czasie rzeczywistym z Docker**
 
 System symuluje sklep internetowy wysyłający zamówienia przez Kafka, a Spark analizuje które produkty są najpopularniejsze. **Całość działa w kontenerach Docker** dla łatwego wdrożenia.
 
@@ -23,8 +23,6 @@ cd ASEED
 # Uruchom cały system
 ./docker-aseed.sh start
 ```
-
-**To wszystko! Jeden skrypt załatwia wszystko.** 🎉
 
 ### 3. Dostęp do systemu
 - **📊 Dashboard**: http://localhost:5005
@@ -83,7 +81,7 @@ cd ASEED
 ```
 ASEED/
 ├── docker-compose.yml           # 🐳 Definicja kontenerów
-├── docker-aseed.sh             # 🎯 JEDYNY SKRYPT - install + manage
+├── docker-aseed.sh             # Skrypt zarządzający
 ├── Dockerfile.python           # Python apps (simulator, dashboard)
 ├── Dockerfile.spark            # Spark master
 ├── Dockerfile.spark-app        # Spark applications
@@ -98,8 +96,7 @@ ASEED/
 ├── test_aseed.py              # 🧪 Testy jednostkowe  
 ├── TECHNICAL_DOCS_DOCKER.md   # 📋 Dokumentacja Docker
 ├── requirements.txt           # Python dependencies
-├── requirements_dev.txt       # Development dependencies
-└── install_legacy.sh          # Instalacja lokalna (deprecated)
+└── requirements_dev.txt       # Development dependencies
 ```
 
 ## 🛠️ Dodatkowe komendy Docker
@@ -134,65 +131,30 @@ docker network ls | grep aseed
 - `http://localhost:5005/api/top-products` - Top sellers
 - `http://localhost:8080` - Spark Master UI
 
-## 🔄 Instalacja lokalna (DEPRECATED)
-
-⚠️ **Uwaga**: Instalacja lokalna jest przestarzała. Użyj Docker!
-
-Jeśli mimo wszystko chcesz uruchomić system lokalnie:
-
-### 1. Instalacja (jednorazowa)
-```bash
-./install.sh  # Wybierz opcję 2 (Lokalny)
-```
-
-### 2. Uruchamianie systemu
-```bash
-python3 aseed.py start
-```
-
-### 3. Zatrzymywanie
-```bash
-python3 aseed.py stop
-```
-
-**Zalecamy przejście na Docker dla lepszego doświadczenia!**
-
 ## 📊 Co system robi?
 
-- **Enhanced Order Simulator** → generuje realistyczne zamówienia z promocjami i trendami
+- **Order Simulator** → generuje realistyczne zamówienia e-commerce
 - **Kafka** → przesyła zamówienia w czasie rzeczywistym
 - **Spark** → analizuje które produkty są top sellers
 - **Dashboard** → pokazuje wyniki na wykresach w czasie rzeczywistym
 
 ## 🧪 Testowanie
 
-### Docker
 ```bash
-# Test generowania danych
-./docker-aseed.sh test 3 15
+# Test generowania danych (3 zamówienia co 15 sekund)
+docker exec -it aseed-order-simulator python3 test_generator.py 3 15
 
 # Testy jednostkowe
-docker run --rm -v $(pwd):/app aseed_order-simulator python test_aseed.py
-```
-
-### Lokalne
-```bash
-python3 test_aseed.py
+docker exec -it aseed-order-simulator python3 test_aseed.py
 ```
 
 ## 🐛 Problemy?
 
-### Docker
-1. **Port zajęty**: `./docker-aseed.sh stop && ./docker-aseed.sh cleanup`
-2. **Brak pamięci**: Zwiększ pamięć w Docker Desktop (min 4GB)
+1. **Port zajęty**: `docker compose down` i spróbuj ponownie
+2. **Brak pamięci**: Zwiększ pamięć w Docker Desktop (min 4GB)  
 3. **Brak Docker**: Zainstaluj Docker Desktop
-4. **Logi błędów**: `./docker-aseed.sh logs [service-name]`
-
-### Lokalne
-1. **Port zajęty**: `pkill -f kafka` i spróbuj ponownie
-2. **Brak Javy**: `sudo apt install openjdk-11-jdk`
-3. **Brak Python**: Zainstaluj Python 3.8+
-4. **Logi**: Sprawdź `logs/` dla szczegółów błędów
+4. **Logi błędów**: `docker compose logs [service-name]`
+5. **Restart systemu**: `docker compose restart`
 
 ## 📈 Dane wyjściowe
 
@@ -205,4 +167,4 @@ System zgodny z wymaganiami:
 
 ---
 
-**🐳 Jeden skrypt Docker, jeden dashboard, wszystko działa w kontenerach! 🎉**
+**System działa w kontenerach Docker.**

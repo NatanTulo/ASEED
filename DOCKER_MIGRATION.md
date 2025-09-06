@@ -14,27 +14,26 @@ System ASEED został zmigrowany do architektury kontenerowej Docker dla łatwiej
 - `.dockerignore` - Pliki ignorowane podczas budowania obrazów
 
 ### Scripts & Documentation
-- `docker-aseed.sh` - 🎯 **JEDYNY SKRYPT** - instalacja + zarządzanie systemem Docker
+- `docker-aseed.sh` - Skrypt instalacji i zarządzania systemem Docker
 - `TECHNICAL_DOCS_DOCKER.md` - Dokumentacja techniczna architektury Docker
 - `README.md` - Zaktualizowane README z instrukcjami Docker
-- `install_legacy.sh` - Stary installer (deprecated, zostanie usunięty)
 
-### Enhanced Features  
-- `src/enhanced_order_simulator.py` - Zaawansowany symulator z promocjami i segmentami klientów
+### Core Components  
+- `src/order_simulator.py` - Generator zamówień e-commerce
 
-## 🔄 Migracja użycia
+## 🔄 Sposób użycia
 
-### Poprzednio (Legacy)
+### Docker (Zalecany)
 ```bash
-# Instalacja wymagała ręcznej konfiguracji
-# Uruchomienie
-python3 aseed.py start
+# Instalacja i uruchomienie
+./docker-aseed.sh install
+./docker-aseed.sh start
 
 # Zatrzymanie
-python3 aseed.py stop
+./docker-aseed.sh stop
 ```
 
-### Teraz (Docker - Jedyny sposób)
+### Docker
 ```bash
 # Jednorazowa instalacja
 ./docker-aseed.sh install
@@ -52,7 +51,7 @@ python3 aseed.py stop
 1. **aseed-zookeeper** - Koordynacja Kafka
 2. **aseed-kafka** - Message broker
 3. **aseed-spark-master** - Zarządzanie klastrem Spark  
-4. **aseed-order-simulator** - Generator zamówień (Enhanced)
+4. **aseed-order-simulator** - Generator zamówień e-commerce
 5. **aseed-data-analyzer** - Aplikacja Spark Streaming
 6. **aseed-web-dashboard** - Dashboard Flask z WebSocket
 
@@ -109,11 +108,6 @@ docker stats
 ### Docker
 ```bash
 ./docker-aseed.sh test 5 20  # 5 min, 20 zamówień/min
-```
-
-### Legacy (nadal działa)
-```bash
-python3 aseed.py test --minutes 5 --rate 20
 ```
 
 ## 🐛 Rozwiązywanie problemów
@@ -177,11 +171,10 @@ sudo netstat -tulpn | grep :9092
 - [ ] CI/CD pipeline z Docker
 
 ### Compatibility
-- ✅ Legacy mode nadal działa (`python3 aseed.py`)
 - ✅ Wszystkie funkcje zachowane
 - ✅ API endpoints niezmienione
 - ✅ Dashboard interface identyczny
 
 ---
 
-**🐳 Migracja zakończona! System teraz działa w kontenerach Docker dla lepszej przenośności i zarządzania.**
+**System został zmigrowny do kontenerów Docker.**

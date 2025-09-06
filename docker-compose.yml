@@ -70,6 +70,28 @@ services:
       timeout: 10s
       retries: 3
 
+  spark-worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.spark
+    hostname: spark-worker
+    container_name: aseed-spark-worker
+    depends_on:
+      spark-master:
+        condition: service_started
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=1g
+      - SPARK_WORKER_CORES=2
+      - SPARK_WORKER_HOST=spark-worker
+    networks:
+      - aseed-network
+    volumes:
+      - ./src:/opt/spark-apps
+      - ./logs:/opt/spark-logs
+    command: ["/opt/bitnami/scripts/spark/entrypoint.sh", "/opt/bitnami/scripts/spark/run.sh"]
+
   order-simulator:
     build:
       context: .
@@ -87,7 +109,7 @@ services:
       - aseed-network
     volumes:
       - ./logs:/app/logs
-    command: python src/enhanced_order_simulator.py
+    command: python src/order_simulator.py
 
   data-analyzer:
     build:
@@ -107,6 +129,11 @@ services:
     volumes:
       - ./src:/opt/spark-apps
       - ./logs:/opt/spark-logs
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "data_analyzer.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     command: python /opt/spark-apps/data_analyzer.py
 
   web-dashboard:
@@ -128,6 +155,7 @@ services:
     volumes:
       - ./logs:/app/logs
       - ./src/templates:/app/src/templates
+      - /var/run/docker.sock:/var/run/docker.sock
     command: python src/web_dashboard.py
 
 networks:

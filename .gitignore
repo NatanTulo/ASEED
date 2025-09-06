@@ -1,17 +1,6 @@
-# Pliki tymczasowe systemu
-logs/
-pids/
-*.log
-*.pid
-
-# Wirtualne środowisko Python
-venv/
-env/
-.venv/
-
-# Pobrane komponenty
-kafka_*/
-spark-*/
+# Docker volumes i cache
+.env
+docker-compose.override.yml
 
 # Pliki Python
 __pycache__/
