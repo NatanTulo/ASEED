@@ -56,6 +56,8 @@ class RealTimeDashboard:
         self.service_status = {
             'zookeeper': {'status': 'unknown', 'pid': None, 'last_check': None},
             'kafka': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'spark-master': {'status': 'unknown', 'pid': None, 'last_check': None},
+            'spark-worker': {'status': 'unknown', 'pid': None, 'last_check': None},
             'order_simulator': {'status': 'unknown', 'pid': None, 'last_check': None},
             'data_analyzer': {'status': 'unknown', 'pid': None, 'last_check': None},
             'dashboard': {'status': 'running', 'pid': os.getpid(), 'last_check': datetime.now()}
@@ -163,6 +165,10 @@ class RealTimeDashboard:
                             service_name = 'zookeeper'
                         elif 'kafka' in name:
                             service_name = 'kafka'
+                        elif 'spark-master' in name:
+                            service_name = 'spark-master'
+                        elif 'spark-worker' in name:
+                            service_name = 'spark-worker'
                         elif 'order-simulator' in name:
                             service_name = 'order_simulator'
                         elif 'data-analyzer' in name:
@@ -189,7 +195,7 @@ class RealTimeDashboard:
                             }
             
             # Update service status for all known services
-            for service in ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer']:
+            for service in ['zookeeper', 'kafka', 'spark-master', 'spark-worker', 'order_simulator', 'data_analyzer']:
                 if service in container_info:
                     self.service_status[service] = container_info[service]
                 else:
@@ -274,7 +280,7 @@ def get_service_status():
             services_for_api[service]['last_check'] = services_for_api[service]['last_check'].isoformat()
     
     # Oblicz ogólny status systemu
-    all_services = ['zookeeper', 'kafka', 'order_simulator', 'data_analyzer', 'dashboard']
+    all_services = ['zookeeper', 'kafka', 'spark-master', 'spark-worker', 'order_simulator', 'data_analyzer', 'dashboard']
     running_count = sum(1 for service in all_services if dash.service_status[service]['status'] == 'running')
     
     overall_status = 'healthy' if running_count == len(all_services) else \
