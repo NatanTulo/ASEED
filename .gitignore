@@ -1,6 +1,7 @@
 # Docker volumes i cache
 .env
 docker-compose.override.yml
+logs/
 
 # Pliki Python
 __pycache__/

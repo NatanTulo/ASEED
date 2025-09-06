@@ -10,9 +10,13 @@ from faker import Faker
 import logging
 
 # Konfiguracja logowania
+log_file = '/app/logs/order_simulator.log' if os.path.exists('/app/logs') else 'order_simulator.log'
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file)
+    ]
 )
 logger = logging.getLogger(__name__)
 

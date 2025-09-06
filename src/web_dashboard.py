@@ -16,7 +16,14 @@ from flask_socketio import SocketIO, emit
 import logging
 
 # Konfiguracja logowania
-logging.basicConfig(level=logging.INFO)
+log_file = '/app/logs/dashboard.log' if os.path.exists('/app/logs') else 'dashboard.log'
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file)
+    ]
+)
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
@@ -109,7 +116,7 @@ class RealTimeDashboard:
         
         thread = threading.Thread(target=monitor_services, daemon=True)
         thread.start()
-        logger.info("🔍 Monitoring serwisów uruchomiony")
+        logger.info("Monitoring serwisów uruchomiony")
     
     def _check_service_status(self):
         """Check status of all ASEED Docker containers"""
@@ -411,13 +418,13 @@ def calculate_metrics():
     pass
 
 if __name__ == '__main__':
-    logger.info("🚀 Starting ASEED Real-time Dashboard")
+    logger.info("Starting ASEED Real-time Dashboard")
     
     # Get host and port from environment variables (for Docker)
     host = os.getenv('FLASK_HOST', '0.0.0.0')
     port = int(os.getenv('FLASK_PORT', '5005'))
     
-    logger.info(f"📊 Dashboard będzie dostępny na: http://{host}:{port}")
+    logger.info(f"Dashboard będzie dostępny na: http://{host}:{port}")
     
     # Initialize global dashboard instance
     dashboard = RealTimeDashboard()
@@ -429,7 +436,7 @@ if __name__ == '__main__':
                     debug=False,
                     allow_unsafe_werkzeug=True)
     except KeyboardInterrupt:
-        logger.info("⚠️ Dashboard zatrzymany")
+        logger.info("Dashboard zatrzymany")
     except Exception as e:
-        logger.error(f"❌ Błąd dashboardu: {e}")
+        logger.error(f"Błąd dashboardu: {e}")
         raise

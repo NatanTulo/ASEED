@@ -11,9 +11,13 @@ from pyspark.sql.types import *
 import logging
 
 # Konfiguracja logowania
+log_file = '/logs/data_analyzer.log' if os.path.exists('/logs') else 'data_analyzer.log'
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file)
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -364,7 +368,7 @@ class OrderAnalyzer:
                     'segments': dashboard_data
                 })
                 
-                logger.info(f"📊 Customer Segments Analysis - Batch {batch_id}")
+                logger.info(f"Customer Segments Analysis - Batch {batch_id}")
                 for row in segments:
                     logger.info(f"  {row['customer_segment']}: {row['order_count']} orders, "
                               f"${row['total_revenue']:.2f} revenue, "
@@ -401,7 +405,7 @@ class OrderAnalyzer:
                     'promotions': dashboard_data
                 })
                 
-                logger.info(f"🎯 Promotions Analysis - Batch {batch_id}")
+                logger.info(f"Promotions Analysis - Batch {batch_id}")
                 for row in promos:
                     promo_text = "WITH promotions" if row['promotion_applied'] else "WITHOUT promotions"
                     logger.info(f"  {promo_text}: {row['order_count']} orders, "

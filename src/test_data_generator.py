@@ -55,8 +55,8 @@ def write_to_log(log_file, message):
 
 def generate_test_data(duration_minutes=5, orders_per_minute=10):
     """Generuje dane testowe przez określony czas"""
-    print(f"🧪 Generowanie danych testowych przez {duration_minutes} minut...")
-    print(f"📊 Częstotliwość: {orders_per_minute} zamówień/minutę")
+    print(f"Generowanie danych testowych przez {duration_minutes} minut...")
+    print(f"Częstotliwość: {orders_per_minute} zamówień/minutę")
     
     # Upewnij się, że katalog logs istnieje (względem głównego katalogu)
     logs_dir = '../logs'
@@ -71,18 +71,18 @@ def generate_test_data(duration_minutes=5, orders_per_minute=10):
     total_orders = duration_minutes * orders_per_minute
     sleep_interval = 60.0 / orders_per_minute  # sekund między zamówieniami
     
-    print(f"🚀 Rozpoczynam generowanie {total_orders} zamówień...")
+    print(f"Rozpoczynam generowanie {total_orders} zamówień...")
     
     for i in range(total_orders):
         order = generate_test_order()
         write_to_log(log_file, order)
         
-        print(f"📝 Zamówienie {i+1}/{total_orders}: {order['product_name']} x{order['quantity']}")
+        print(f"Zamówienie {i+1}/{total_orders}: {order['product_name']} x{order['quantity']}")
         
         time.sleep(sleep_interval)
     
-    print("✅ Generowanie danych testowych zakończone!")
-    print(f"📁 Dane zapisane w: {log_file}")
+    print("Generowanie danych testowych zakończone!")
+    print(f"Dane zapisane w: {log_file}")
 
 if __name__ == '__main__':
     import argparse
@@ -98,4 +98,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n🛑 Zatrzymano przez użytkownika")
     except Exception as e:
-        print(f"❌ Błąd: {e}")
+        print(f"Błąd: {e}")

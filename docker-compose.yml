@@ -10,6 +10,21 @@ services:
       ZOOKEEPER_TICK_TIME: 2000
     networks:
       - aseed-network
+    volumes:
+      - ./logs:/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /logs/zookeeper.log
+        
+        # Uruchom Zookeeper z przekierowaniem logów
+        /etc/confluent/docker/run 2>&1 | tee -a /logs/zookeeper.log
+      "
     healthcheck:
       test: ["CMD", "bash", "-c", "echo 'ruok' | nc localhost 2181"]
       interval: 10s
@@ -37,8 +52,25 @@ services:
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
       KAFKA_JMX_PORT: 9101
       KAFKA_JMX_HOSTNAME: localhost
+      KAFKA_LOG4J_ROOT_LOGLEVEL: INFO
+      KAFKA_LOG4J_LOGGERS: "kafka.controller=INFO,kafka.producer.async.DefaultEventHandler=INFO,state.change.logger=INFO"
     networks:
       - aseed-network
+    volumes:
+      - ./logs:/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /logs/kafka.log
+        
+        # Uruchom Kafka z przekierowaniem logów
+        /etc/confluent/docker/run 2>&1 | tee -a /logs/kafka.log
+      "
     healthcheck:
       test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
       interval: 30s
@@ -63,9 +95,22 @@ services:
       - aseed-network
     volumes:
       - ./src:/opt/spark-apps
-      - ./logs:/opt/spark-logs
+      - ./logs:/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /logs/spark-master.log
+        
+        # Uruchom Spark Master z przekierowaniem logów (usuń kody kolorów)
+        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/spark-master.log
+      "
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "8080"]
+      test: ["CMD", "python3", "-c", "import socket; socket.create_connection(('localhost', 8080), timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -89,8 +134,20 @@ services:
       - aseed-network
     volumes:
       - ./src:/opt/spark-apps
-      - ./logs:/opt/spark-logs
-    command: ["/opt/bitnami/scripts/spark/entrypoint.sh", "/opt/bitnami/scripts/spark/run.sh"]
+      - ./logs:/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /logs/spark-worker.log
+        
+        # Uruchom Spark Worker z przekierowaniem logów (usuń kody kolorów)
+        /opt/bitnami/scripts/spark/entrypoint.sh /opt/bitnami/scripts/spark/run.sh 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/spark-worker.log
+      "
 
   order-simulator:
     build:
@@ -109,7 +166,19 @@ services:
       - aseed-network
     volumes:
       - ./logs:/app/logs
-    command: python src/order_simulator.py
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /app/logs/order_simulator.log
+        
+        # Uruchom simulator z przekierowaniem logów (usuń kody kolorów)
+        python src/order_simulator.py 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /app/logs/order_simulator.log
+      "
 
   data-analyzer:
     build:
@@ -128,13 +197,25 @@ services:
       - aseed-network
     volumes:
       - ./src:/opt/spark-apps
-      - ./logs:/opt/spark-logs
+      - ./logs:/logs
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /logs/data_analyzer.log
+        
+        # Uruchom analyzer z przekierowaniem logów (usuń kody kolorów)
+        python /opt/spark-apps/data_analyzer.py 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /logs/data_analyzer.log
+      "
     healthcheck:
       test: ["CMD", "pgrep", "-f", "data_analyzer.py"]
       interval: 30s
       timeout: 10s
       retries: 3
-    command: python /opt/spark-apps/data_analyzer.py
 
   web-dashboard:
     build:
@@ -156,7 +237,19 @@ services:
       - ./logs:/app/logs
       - ./src/templates:/app/src/templates
       - /var/run/docker.sock:/var/run/docker.sock
-    command: python src/web_dashboard.py
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    command: >
+      sh -c "
+        # Utwórz plik logu
+        touch /app/logs/dashboard.log
+        
+        # Uruchom dashboard z przekierowaniem logów (usuń kody kolorów)
+        python src/web_dashboard.py 2>&1 | sed 's/\x1b\[[0-9;]*m//g' | tee -a /app/logs/dashboard.log
+      "
 
 networks:
   aseed-network:
