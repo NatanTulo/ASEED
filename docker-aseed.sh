@@ -50,11 +50,7 @@ start_system() {
         sleep 2
     fi
     
-    # Zbuduj obrazy Docker
-    echo -e "${BLUE}🔨 Budowanie obrazów Docker...${NC}"
-    $DOCKER_COMPOSE_CMD build --no-cache
-    
-    # Uruchom wszystkie serwisy
+    # Uruchom wszystkie serwisy (Docker Compose zbuduje obrazy automatycznie jeśli nie istnieją)
     echo -e "${BLUE}Uruchamianie kontenerów...${NC}"
     $DOCKER_COMPOSE_CMD up -d
     
