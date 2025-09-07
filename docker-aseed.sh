@@ -71,6 +71,10 @@ start_system() {
     echo -e "${BLUE}Spark UI: http://localhost:8080${NC}"
     echo -e "${BLUE}Logi: docker-compose logs -f [service]${NC}"
     echo -e "${BLUE}🛑 Zatrzymanie: ./docker-aseed.sh stop${NC}"
+    echo -e "${BLUE}Jeśli niektóre kontenery się nie uruchamiają, upewnij się, że folder logs/ ma wymagane uprawnienia:${NC}"
+    echo -e "${BLUE}sudo chmod 777 logs/${NC}"
+    echo -e "${BLUE}Lub uruchom skrypt przy pomocy sudo:${NC}"
+    echo -e "${BLUE}sudo ./docker-aseed.sh install ${NC}"
 }
 
 # Funkcja zatrzymywania systemu
@@ -279,7 +283,8 @@ install_system() {
     # Utwórz katalogi robocze
     echo -e "${BLUE}Tworzenie katalogów...${NC}"
     mkdir -p logs
-    
+    sudo chmod 777 logs/
+
     # Test Docker Compose
     echo -e "${BLUE}Test konfiguracji Docker Compose...${NC}"
     if ! $DOCKER_COMPOSE_CMD config &> /dev/null; then
