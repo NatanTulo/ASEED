@@ -23,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 class OrderAnalyzer:
     def __init__(self):
+        #konfiguracja i inicjalizacja
         self.spark_master = os.getenv('SPARK_MASTER_URL', 'local[*]')
         self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'kafka:29092')
         self.kafka_topic = os.getenv('KAFKA_TOPIC', 'orders')
@@ -30,7 +31,7 @@ class OrderAnalyzer:
         
         self.spark = None
         self.running = True
-        self.queries = []
+        self.queries = []  #lista aktywnych zapytań strumieniowych
         
         # Ustawienie obsługi sygnałów
         signal.signal(signal.SIGTERM, self._signal_handler)
@@ -86,7 +87,7 @@ class OrderAnalyzer:
             raise
     
     def _define_schema(self):
-        """Definiuje schemat danych zamówienia"""
+        """Definiuje schemat danych zamówienia - Definiuje strukturę JSON-a który otrzymujemy z Kafka, żeby Spark wiedział jak parsować dane."""
         return StructType([
             StructField("order_id", StringType(), True),
             StructField("product_id", StringType(), True),
@@ -109,8 +110,8 @@ class OrderAnalyzer:
                     .readStream \
                     .format("kafka") \
                     .option("kafka.bootstrap.servers", self.kafka_servers) \
-                    .option("subscribe", self.kafka_topic) \
-                    .option("startingOffsets", "latest") \
+                    .option("subscribe", self.kafka_topic) \ 
+                    .option("startingOffsets", "latest") \  
                     .option("failOnDataLoss", "false") \
                     .load()
                 
@@ -127,8 +128,8 @@ class OrderAnalyzer:
                     raise
     
     def _parse_orders(self, kafka_df):
-        """Parsuje dane zamówień z JSON"""
-        schema = self._define_schema()
+        """Parsuje dane zamówień z JSON - konwertuje surowy strumień z Kafka do struktury DataFrame z odpowiednimi kolumnami."""
+        schema = self._define_schema()   #korzysta z wcześniej zdefiniowanego schematu
         
         orders_df = kafka_df \
             .select(from_json(col("value").cast("string"), schema).alias("order")) \
@@ -148,7 +149,7 @@ class OrderAnalyzer:
                 col("product_name"),
                 col("category")
             ) \
-            .agg(
+            .agg(  # zlicza zamówienia, sumuje ilości i przychody
                 count("order_id").alias("order_count"),
                 sum("quantity").alias("total_quantity"),
                 sum("total_value").alias("total_revenue"),
@@ -174,6 +175,8 @@ class OrderAnalyzer:
         
         return category_analysis
     
+
+    #TO DO USUNIĘCIA
     def _analyze_customer_segments(self, orders_df):
         """Advanced analysis: Customer segment performance"""
         return orders_df \
@@ -200,6 +203,8 @@ class OrderAnalyzer:
                 col("unique_customers")
             )
     
+
+    #DO USUNIĘCIA
     def _analyze_promotions_effectiveness(self, orders_df):
         """Advanced analysis: Promotion effectiveness"""
         return orders_df \
@@ -222,6 +227,8 @@ class OrderAnalyzer:
                 col("avg_order_value")
             )
     
+
+    #DO USUNIĘCIA
     def _analyze_hourly_trends(self, orders_df):
         """Advanced analysis: Hourly sales trends"""
         return orders_df \
@@ -344,6 +351,8 @@ class OrderAnalyzer:
         
         return query
     
+
+    #DO USUNIĘCIA
     def _output_customer_segments(self, analysis_df):
         """Output customer segment analysis"""
         def process_batch(batch_df, batch_id):
@@ -382,6 +391,8 @@ class OrderAnalyzer:
         
         return query
     
+
+    #DO USUNIĘCIA
     def _output_promotions_analysis(self, analysis_df):
         """Output promotions effectiveness analysis"""
         def process_batch(batch_df, batch_id):
@@ -419,6 +430,7 @@ class OrderAnalyzer:
         
         return query
     
+
     def _output_raw_orders(self, orders_df):
         """Wyprowadza surowe zamówienia do dashboard"""
         
@@ -460,6 +472,11 @@ class OrderAnalyzer:
         
         return query
     
+    '''
+    główna pętla. czyta dane z kafki, parsuje, analizuje. Są 3 równoległe strumienie: raw orders, top products, categories. 
+    '''
+
+
     def run(self):
         """Główna metoda uruchamiająca analizę"""
         logger.info("Rozpoczynanie analizy zamówień...")

@@ -15,7 +15,7 @@ from flask import Flask, render_template, request, jsonify
 from flask_socketio import SocketIO, emit
 import logging
 
-# Wyłącz kolory ANSI na poziomie środowiska
+# Wyłącz kolory ANSI na poziomie środowiska (bo są problematyczne dla dockera)
 os.environ['NO_COLOR'] = '1'
 os.environ['TERM'] = 'dumb'
 os.environ['FLASK_ENV'] = 'production'

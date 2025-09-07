@@ -12,19 +12,19 @@ import logging
 # Konfiguracja logowania
 log_file = '/app/logs/order_simulator.log' if os.path.exists('/app/logs') else 'order_simulator.log'
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO,  #ustawia minimalny poziom logów na INFO, czyli DEBUG nie będzie widoczny, a INFO, WARNING, ERROR i CRITICAL już tak
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', #format każdej linii w logu
     handlers=[
-        logging.FileHandler(log_file)
+        logging.FileHandler(log_file)   #definiuje gdzie logi będą zapisywane
     ]
 )
 logger = logging.getLogger(__name__)
 
 class OrderSimulator:
     def __init__(self):
-        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
-        self.topic = os.getenv('KAFKA_TOPIC', 'orders')
-        # Zmieniam na częstsze zamówienia - średnio co 3-8 sekund
+        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')   #adres brokera kafka
+        self.topic = os.getenv('KAFKA_TOPIC', 'orders') # temat kafka, gdzie wysyłane są zamówienia
+        # Częstość generowania zamówień - 3-8 sekund
         self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '3'))  # min 3 sekundy
         self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '8'))  # max 8 sekund
         self.product_count = int(os.getenv('PRODUCT_COUNT', '50'))
@@ -126,7 +126,7 @@ class OrderSimulator:
             {'name': 'Essential Oil', 'category': 'Beauty', 'price': 24.99}
         ]
         
-        # Twórz produkty z konkretnych definicji
+        # Twórz produkty z konkretnych definicji - przekształcenie surowej listy produktów w ustrukturyzowany format wymagany przez resztę aplikacji
         for i, product_data in enumerate(product_list):
             if i >= self.product_count:
                 break
@@ -139,7 +139,7 @@ class OrderSimulator:
             }
             products.append(product)
         
-        # Jeśli potrzebujemy więcej produktów, dodaj warianty
+        # Jeśli potrzebujemy więcej produktów, dodaj warianty. Z tego nie korzystamy, bo mamy 50 product_count i 60 products
         if len(products) < self.product_count:
             brands = ['Premium', 'Pro', 'Elite', 'Classic', 'Essential', 'Deluxe']
             colors = ['Black', 'White', 'Blue', 'Red', 'Silver', 'Gold']
@@ -170,6 +170,15 @@ class OrderSimulator:
         
         return products[:self.product_count]
     
+
+    #system popularności produktów
+    '''
+    5 pierwszych produktów - bardzo popularne (waga 10)
+    10 następnych produktów - średnio popularne (waga 5)
+    Reszta produktów - mniej popularne (waga 1)
+    '''
+
+
     def _generate_product_weights(self):
         """Generuje wagi dla produktów - niektóre będą popularniejsze"""
         weights = []
@@ -182,6 +191,8 @@ class OrderSimulator:
                 weights.append(1)
         return weights
     
+
+    #łączenie z kafka. 30 prób połączenia z Kafka, z 2-sekundowymi przerwami
     def _connect_kafka(self):
         """Nawiązuje połączenie z Kafka"""
         max_retries = 30
@@ -212,9 +223,11 @@ class OrderSimulator:
         # Wybierz produkt na podstawie wag (popularności)
         product = random.choices(self.products, weights=self.product_weights)[0]
         
-        # Używaj stałej ceny produktu bez wariacji
+        # Używaj stałej ceny produktu 
         final_price = product['base_price']
         
+
+        #struktura zamówienia
         order = {
             'order_id': f'ORDER-{self.order_counter:06d}',
             'product_id': product['id'],
@@ -232,15 +245,15 @@ class OrderSimulator:
         """Wysyła zamówienie do Kafka"""
         try:
             # Serializuj do JSON
-            value = json.dumps(order).encode('utf-8')
+            value = json.dumps(order).encode('utf-8')   #dict -> JSON string -> bytes (bo kafka operuje na surowych bajtach)
             key = order['order_id'].encode('utf-8')
             
             self.producer.produce(
-                self.topic,
-                key=key,
-                value=value
+                self.topic,   #'orders'
+                key=key,      # b'ORDER-000001'  - klucz do decyzji, do której partycji trafi wiadomość
+                value=value   # b'{"order_id": "ORDER-000001", ...}' (faktyczne dane zamówienia json)
             )
-            # Prześlij natychmiast
+            # Prześlij natychmiast - flush wymusza wysłanie wszystkich oczekujących wiadomości
             self.producer.flush()
             
             logger.info(f"Wysłano zamówienie: {order['order_id']} - {order['product_name']} - ${order['price']}")
@@ -248,6 +261,10 @@ class OrderSimulator:
         except Exception as e:
             logger.error(f"Błąd wysyłania zamówienia {order['order_id']}: {e}")
             return False
+    
+    '''
+    run() - główna pętla symulatora - generuje, wysyła zamówienie i potem sleep na randomowy czas od 3 to 8 sekund
+    '''
     
     def run(self):
         """Główna pętla symulatora"""
