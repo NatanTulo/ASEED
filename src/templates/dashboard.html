@@ -362,11 +362,16 @@
                                     const orderCount = context.parsed;
                                     const categoryData = categoriesChart.categoryDetails[context.dataIndex];
                                     
+                                    // Handle empty state or missing data
+                                    if (!categoryData || category === 'No data') {
+                                        return `${category}`;
+                                    }
+                                    
                                     return [
                                         `${category}: ${orderCount} orders`,
-                                        `Items sold: ${categoryData.total_quantity}`,
-                                        `Revenue: $${categoryData.total_revenue.toFixed(2)}`,
-                                        `Products: ${categoryData.unique_products}`
+                                        `Items sold: ${categoryData.total_quantity || 0}`,
+                                        `Revenue: $${(categoryData.total_revenue || 0).toFixed(2)}`,
+                                        `Products: ${categoryData.unique_products || 0}`
                                     ];
                                 }
                             }
@@ -384,7 +389,11 @@
             });
             
             // Store category details for tooltips
-            categoriesChart.categoryDetails = [];
+            categoriesChart.categoryDetails = [{
+                total_quantity: 0,
+                total_revenue: 0,
+                unique_products: 0
+            }];
         }
         
         // Update metrics
@@ -442,7 +451,11 @@
                 // Show empty state with fixed structure
                 categoriesChart.data.labels = ['No data'];
                 categoriesChart.data.datasets[0].data = [1];
-                categoriesChart.categoryDetails = [];
+                categoriesChart.categoryDetails = [{
+                    total_quantity: 0,
+                    total_revenue: 0,
+                    unique_products: 0
+                }];
                 categoriesChart.update('none'); // No animation for better performance
                 return;
             }
@@ -460,9 +473,9 @@
             
             // Store detailed data for tooltips
             categoriesChart.categoryDetails = topCategories.map(c => ({
-                total_quantity: c.total_quantity,
-                total_revenue: c.total_revenue,
-                unique_products: c.unique_products
+                total_quantity: c.total_quantity || 0,
+                total_revenue: c.total_revenue || 0,
+                unique_products: c.unique_products || 0
             }));
             
             categoriesChart.update('none'); // No animation for better performance

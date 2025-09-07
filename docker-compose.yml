@@ -114,35 +114,6 @@ services:
       retries: 10
       start_period: 60s
 
-  # Init kontener do sprawdzania stanu ZooKeeper/Kafka
-  kafka-init:
-    image: confluentinc/cp-kafka:7.4.0
-    depends_on:
-      kafka:
-        condition: service_healthy
-    networks:
-      - aseed-network
-    volumes:
-      - ./logs:/logs
-    command: >
-      sh -c "
-        echo 'Sprawdzanie gotowości Kafka...' | tee -a /logs/kafka-init.log
-        
-        # Sprawdź czy Kafka jest gotowa
-        until kafka-broker-api-versions --bootstrap-server kafka:9092; do
-          echo 'Kafka nie jest gotowa, czekanie 5s...' | tee -a /logs/kafka-init.log
-          sleep 5
-        done
-        
-        echo 'Kafka jest gotowa!' | tee -a /logs/kafka-init.log
-        
-        # Utworzenie podstawowych topików jeśli nie istnieją
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic orders --partitions 1 --replication-factor 1 || true
-        kafka-topics --bootstrap-server kafka:9092 --create --if-not-exists --topic processed-orders --partitions 1 --replication-factor 1 || true
-        
-        echo 'Kafka init zakończony pomyślnie' | tee -a /logs/kafka-init.log
-      "
-
   spark-master:
     build:
       context: .
@@ -202,8 +173,8 @@ services:
     depends_on:
       spark-master:
         condition: service_healthy
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     environment:
       - SPARK_MODE=worker
       - SPARK_MASTER_URL=spark://spark-master:7077
@@ -246,8 +217,8 @@ services:
     container_name: aseed-order-simulator
     restart: unless-stopped
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC=orders
@@ -279,8 +250,8 @@ services:
     container_name: aseed-data-analyzer
     restart: unless-stopped
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
       spark-master:
         condition: service_healthy
     environment:
@@ -322,8 +293,8 @@ services:
     ports:
       - "5005:5005"
     depends_on:
-      kafka-init:
-        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - FLASK_ENV=production
