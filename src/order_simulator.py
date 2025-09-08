@@ -21,11 +21,21 @@ logger = logging.getLogger(__name__)
 
 class OrderSimulator:
     def __init__(self):
-        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')                       
-        self.topic = os.getenv('KAFKA_TOPIC', 'orders')                                            
-        self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '3'))                 
-        self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '8'))                
+        # Konfiguracja z env
+        self.kafka_servers = os.getenv('KAFKA_BOOTSTRAP_SERVERS', 'localhost:9092')
+        self.topic = os.getenv('KAFKA_TOPIC', 'orders')
         self.product_count = int(os.getenv('PRODUCT_COUNT', '50'))
+
+        # Stałe sterowanie tempem poprzez MIN/MAX
+        try:
+            self.min_interval = float(os.getenv('MIN_ORDER_INTERVAL', '3'))
+            self.max_interval = float(os.getenv('MAX_ORDER_INTERVAL', '8'))
+            if self.min_interval <= 0 or self.max_interval <= 0 or self.min_interval > self.max_interval:
+                raise ValueError
+        except ValueError:
+            logger.warning("Niepoprawne wartości MIN/MAX – używam domyślnych 3..8s")
+            self.min_interval = 3.0
+            self.max_interval = 8.0
 
         self.fake = Faker()
         self.producer = None
@@ -194,12 +204,10 @@ class OrderSimulator:
         try:
             value = json.dumps(order).encode('utf-8')                                                                       
             key = order['order_id'].encode('utf-8')
-
-            self.producer.produce(
-                self.topic,            
-                key=key,                                                                               
-                value=value                                                                          
-            )
+            if not self.producer:
+                logger.error("Producer Kafka nie jest zainicjalizowany")
+                return False
+            self.producer.produce(self.topic, key=key, value=value)
             self.producer.flush()
 
             logger.info(f"Wysłano zamówienie: {order['order_id']} - {order['product_name']} - ${order['price']}")
@@ -212,6 +220,7 @@ class OrderSimulator:
         """Główna pętla symulatora"""
         logger.info("Rozpoczynanie symulatora zamówień...")
         logger.info(f"Wysyłanie zamówień w losowych odstępach {self.min_interval}-{self.max_interval} sekund")
+        logger.info(f"Kafka: {self.kafka_servers} | Topic: {self.topic} | Produkty: {self.product_count}")
 
         self._connect_kafka()
 
@@ -221,7 +230,6 @@ class OrderSimulator:
                 self.send_order(order)
 
                 sleep_time = random.uniform(self.min_interval, self.max_interval)
-
                 logger.debug(f"Czekam {sleep_time:.1f} sekund do następnego zamówienia...")
                 time.sleep(sleep_time)
 

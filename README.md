@@ -133,6 +133,24 @@ cd ASEED
 ./docker-aseed.sh cleanup
 ```
 
+## Konfiguracja przez plik `.env`
+
+Wszystkie główne parametry można zmieniać w pliku `.env` (ładowany do kontenerów przez `env_file`).
+
+| Zmienna | Domyślna | Opis |
+|---------|----------|------|
+| KAFKA_BOOTSTRAP_SERVERS | kafka:29092 | Adres klastra Kafka (wewnątrz sieci Docker) |
+| KAFKA_TOPIC | orders | Nazwa topicu zamówień |
+| MIN_ORDER_INTERVAL | 3 | Minimalny odstęp (s) między zamówieniami |
+| MAX_ORDER_INTERVAL | 8 | Maksymalny odstęp (s) między zamówieniami |
+| PRODUCT_COUNT | 50 | Liczba produktów w puli generatora |
+| SPARK_MASTER_URL | spark://spark-master:7077 | Adres Spark Master |
+| DASHBOARD_URL | http://web-dashboard:5005 | URL dashboardu (używane przez analyzer do POST) |
+| TOP_PRODUCTS_INTERVAL_SECONDS | 10 | Interwał batch dla top produktów (sekundy) |
+| CATEGORIES_INTERVAL_SECONDS | 15 | Interwał batch dla agregacji kategorii |
+| RAW_ORDERS_INTERVAL_SECONDS | 5 | Interwał batch dla surowych zamówień |
+
+
 ## Architektura kontenerowa Docker
 
 ```mermaid

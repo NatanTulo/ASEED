@@ -219,11 +219,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - KAFKA_TOPIC=orders
-      - ORDERS_PER_SECOND=2
-      - PRODUCT_COUNT=50
+    env_file:
+      - ./.env
     networks:
       - aseed-network
     volumes:
@@ -254,9 +251,8 @@ services:
         condition: service_healthy
       spark-master:
         condition: service_healthy
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - SPARK_MASTER_URL=spark://spark-master:7077
+    env_file:
+      - ./.env
     networks:
       - aseed-network
     volumes:
@@ -295,11 +291,8 @@ services:
     depends_on:
       kafka:
         condition: service_healthy
-    environment:
-      - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
-      - FLASK_ENV=production
-      - FLASK_HOST=0.0.0.0
-      - FLASK_PORT=5005
+    env_file:
+      - ./.env
     networks:
       - aseed-network
     volumes:

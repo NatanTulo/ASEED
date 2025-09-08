@@ -1,5 +1,5 @@
 # Docker volumes i cache
-.env
+# .env
 docker-compose.override.yml
 logs/
 

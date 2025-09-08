@@ -27,6 +27,27 @@ class OrderAnalyzer:
         self.kafka_topic = os.getenv('KAFKA_TOPIC', 'orders')
         self.dashboard_url = os.getenv('DASHBOARD_URL', 'http://web-dashboard:5005')
 
+        # Interwały batch (parametryzowane przez .env)
+        def _read_interval(name: str, default: int) -> int:
+            raw = os.getenv(name, str(default)).strip()
+            try:
+                val = int(raw)
+                if val <= 0:
+                    raise ValueError
+                return val
+            except ValueError:
+                logger.warning(f"Niepoprawna wartość {name}={raw} – używam domyślnej {default}s")
+                return default
+
+        self.top_products_interval = _read_interval('TOP_PRODUCTS_INTERVAL_SECONDS', 10)
+        self.categories_interval = _read_interval('CATEGORIES_INTERVAL_SECONDS', 15)
+        self.raw_orders_interval = _read_interval('RAW_ORDERS_INTERVAL_SECONDS', 5)
+
+        logger.info(
+            "Interwały batch: top_products=%ss, categories=%ss, raw_orders=%ss", 
+            self.top_products_interval, self.categories_interval, self.raw_orders_interval
+        )
+
         self.spark = None
         self.running = True
         self.queries = []                                         
@@ -214,7 +235,7 @@ class OrderAnalyzer:
         query = analysis_df.writeStream\
             .foreachBatch(process_batch)\
             .outputMode("complete")\
-            .trigger(processingTime='10 seconds')\
+            .trigger(processingTime=f'{self.top_products_interval} seconds')\
             .start()
 
         return query
@@ -259,7 +280,7 @@ class OrderAnalyzer:
         query = analysis_df.writeStream\
             .foreachBatch(process_batch)\
             .outputMode("complete")\
-            .trigger(processingTime='15 seconds')\
+            .trigger(processingTime=f'{self.categories_interval} seconds')\
             .start()
 
         return query
@@ -375,7 +396,7 @@ class OrderAnalyzer:
         query = orders_df.writeStream\
             .foreachBatch(process_batch)\
             .outputMode("append")\
-            .trigger(processingTime='5 seconds')\
+            .trigger(processingTime=f'{self.raw_orders_interval} seconds')\
             .start()
 
         return query
