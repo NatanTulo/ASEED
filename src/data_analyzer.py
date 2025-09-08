@@ -1,13 +1,18 @@
 import os
 import time
 import signal
-import sys
-import json
 import requests
 from datetime import datetime
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import *
-from pyspark.sql.types import *
+from pyspark.sql.functions import (
+    from_json, col, to_timestamp,
+    count, sum, avg, max, desc,
+    approx_count_distinct
+)
+from pyspark.sql.types import (
+    StructType, StructField,
+    StringType, DoubleType, IntegerType
+)
 import logging
 
 log_file = '/logs/data_analyzer.log' if os.path.exists('/logs') else 'data_analyzer.log'
@@ -284,84 +289,6 @@ class OrderAnalyzer:
             .start()
 
         return query
-
-
-    def _output_customer_segments(self, analysis_df):
-        """Output customer segment analysis"""
-        def process_batch(batch_df, batch_id):
-            if batch_df.count() > 0:
-                segments = batch_df.collect()
-
-                dashboard_data = []
-                for row in segments:
-                    dashboard_data.append({
-                        'segment': row['customer_segment'],
-                        'order_count': row['order_count'],
-                        'total_revenue': float(row['total_revenue']),
-                        'avg_order_value': float(row['avg_order_value']),
-                        'unique_customers': row['unique_customers'],
-                        'window_start': row['window_start'].isoformat(),
-                        'window_end': row['window_end'].isoformat()
-                    })
-
-                self._send_to_dashboard('customer_segments', {
-                    'batch_id': batch_id,
-                    'timestamp': datetime.now().isoformat(),
-                    'segments': dashboard_data
-                })
-
-                logger.info(f"Customer Segments Analysis - Batch {batch_id}")
-                for row in segments:
-                    logger.info(f"  {row['customer_segment']}: {row['order_count']} orders, "
-                              f"${row['total_revenue']:.2f} revenue, "
-                              f"${row['avg_order_value']:.2f} AOV")
-
-        query = analysis_df.writeStream\
-            .foreachBatch(process_batch)\
-            .outputMode("append")\
-            .trigger(processingTime='20 seconds')\
-            .start()
-
-        return query
-
-
-    def _output_promotions_analysis(self, analysis_df):
-        """Output promotions effectiveness analysis"""
-        def process_batch(batch_df, batch_id):
-            if batch_df.count() > 0:
-                promos = batch_df.collect()
-
-                dashboard_data = []
-                for row in promos:
-                    dashboard_data.append({
-                        'promotion_applied': row['promotion_applied'],
-                        'order_count': row['order_count'],
-                        'total_revenue': float(row['total_revenue']),
-                        'avg_order_value': float(row['avg_order_value']),
-                        'window_start': row['window_start'].isoformat(),
-                        'window_end': row['window_end'].isoformat()
-                    })
-
-                self._send_to_dashboard('promotions', {
-                    'batch_id': batch_id,
-                    'timestamp': datetime.now().isoformat(),
-                    'promotions': dashboard_data
-                })
-
-                logger.info(f"Promotions Analysis - Batch {batch_id}")
-                for row in promos:
-                    promo_text = "WITH promotions" if row['promotion_applied'] else "WITHOUT promotions"
-                    logger.info(f"  {promo_text}: {row['order_count']} orders, "
-                              f"${row['avg_order_value']:.2f} AOV")
-
-        query = analysis_df.writeStream\
-            .foreachBatch(process_batch)\
-            .outputMode("append")\
-            .trigger(processingTime='25 seconds')\
-            .start()
-
-        return query
-
 
     def _output_raw_orders(self, orders_df):
         """Wyprowadza surowe zamówienia do dashboard"""
