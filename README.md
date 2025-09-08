@@ -1,4 +1,4 @@
-# ASEED - Apache Spark + Kafka E-commerce Analytics
+# ASEED 193527 193272 - Apache Spark + Kafka E-commerce Analytics
 
 **System analizy zamówień e-commerce w czasie rzeczywistym z Docker**
 
@@ -146,9 +146,15 @@ Wszystkie główne parametry można zmieniać w pliku `.env` (ładowany do konte
 | PRODUCT_COUNT | 50 | Liczba produktów w puli generatora |
 | SPARK_MASTER_URL | spark://spark-master:7077 | Adres Spark Master |
 | DASHBOARD_URL | http://web-dashboard:5005 | URL dashboardu (używane przez analyzer do POST) |
-| TOP_PRODUCTS_INTERVAL_SECONDS | 10 | Interwał batch dla top produktów (sekundy) |
-| CATEGORIES_INTERVAL_SECONDS | 15 | Interwał batch dla agregacji kategorii |
-| RAW_ORDERS_INTERVAL_SECONDS | 5 | Interwał batch dla surowych zamówień |
+| TOP_PRODUCTS_INTERVAL_SECONDS | 5 | Interwał batch dla top produktów (sekundy) |
+| CATEGORIES_INTERVAL_SECONDS | 5 | Interwał batch dla agregacji kategorii |
+| RAW_ORDERS_INTERVAL_SECONDS | 3 | Interwał batch dla surowych zamówień |
+| FLASK_ENV | production | Tryb uruchomienia dashboardu Flask |
+| FLASK_HOST | 0.0.0.0 | Adres nasłuchu dashboardu (wewnątrz kontenera) |
+| FLASK_PORT | 5005 | Port dashboardu |
+
+Po zmianie wartości w `.env` wykonaj redeploy odpowiednich serwisów, np.:
+`./docker-aseed.sh restart-service order-simulator` lub `./docker-aseed.sh restart-service data_analyzer`.
 
 
 ## Architektura kontenerowa Docker
