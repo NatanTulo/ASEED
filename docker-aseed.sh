@@ -173,20 +173,6 @@ create_kafka_topic() {
     echo -e "${GREEN}Topic 'orders' utworzony${NC}"
 }
 
-# Funkcja testowania
-test_system() {
-    local minutes=${1:-2}
-    local rate=${2:-10}
-    
-    echo -e "${BLUE}Test systemu przez $minutes minut z $rate zamówień/min${NC}"
-    
-    # Uruchom dodatkowy kontener do testów
-    docker run --rm --network aseed_aseed-network \
-        -e KAFKA_BOOTSTRAP_SERVERS=kafka:29092 \
-        -e TEST_MINUTES=$minutes \
-        -e TEST_RATE=$rate \
-        aseed_order-simulator:latest python src/test_data_generator.py --minutes $minutes --rate $rate
-}
 
 # Funkcja budowania obrazów
 build_images() {
@@ -336,10 +322,6 @@ case "${1:-help}" in
         check_docker
         restart_service $2
         ;;
-    test)
-        check_docker
-        test_system $2 $3
-        ;;
     build)
         check_docker
         build_images
@@ -361,7 +343,6 @@ case "${1:-help}" in
         echo "  status             Pokaż status kontenerów"
         echo "  logs [service]     Pokaż logi (wszystkie lub konkretnego serwisu)"
         echo "  restart-service <service>  Zrestartuj konkretny serwis"
-        echo "  test [min] [rate]  Uruchom test (domyślnie: 2 min, 10 zamówień/min)"
         echo "  build              Zbuduj obrazy Docker"
         echo "  cleanup            Wyczyść system (usuń kontenery, obrazy, woluminy)"
         echo "  help               Pokaż pomoc"
@@ -370,7 +351,6 @@ case "${1:-help}" in
         echo "  $0 install                  # Jednorazowa instalacja"
         echo "  $0 start                    # Uruchom system"
         echo "  $0 logs web-dashboard       # Logi dashboardu"
-        echo "  $0 test 5 20                # Test: 5 min, 20 zamówień/min"
         echo ""
         echo "Po uruchomieniu:"
         echo "  Dashboard: http://localhost:5005"

@@ -51,7 +51,8 @@ System symuluje sklep internetowy wysyłający zamówienia przez Kafka, a Spark 
 - **Rola:** Interfejs webowy do monitorowania systemu
 - **Zadania:** Dashboard w czasie rzeczywistym, wykresy, monitoring kontenerów Docker
 - **Technologia:** Flask + WebSocket + Chart.js
-- **API:** `/api/analytics`, `/api/top-products`
+- **API (GET):** `/api/status`, `/api/service-status`, `/api/dashboard_data`
+- **API (POST – wewnętrzne od Spark):** `/api/top_products`, `/api/categories`, `/api/raw_orders`
 
 ## Przepływ danych w systemie
 
@@ -124,9 +125,6 @@ cd ASEED
 
 # Restart konkretnego serwisu
 ./docker-aseed.sh restart-service kafka
-
-# Test z danymi
-./docker-aseed.sh test 5 20  # 5 minut, 20 zamówień/min
 
 # Zatrzymanie systemu
 ./docker-aseed.sh stop
@@ -261,7 +259,6 @@ graph TB
         OS[order_simulator.py<br/>Generator zamówień]
         DA[data_analyzer.py<br/>Spark Analytics]
         WD[web_dashboard.py<br/>Flask Dashboard]
-        TG[test_data_generator.py<br/>Test data]
         TM[templates/<br/>HTML/CSS/JS]
     end
     
@@ -277,7 +274,6 @@ graph TB
     subgraph "Dokumentacja"
         RM[README.md<br/>Główna dokumentacja]
         JN[system_demo.ipynb<br/>Jupyter Demo]  
-        TA[test_aseed.py<br/>Testy]
         RT[requirements.txt<br/>Zależności]
     end
     
@@ -309,7 +305,6 @@ ASEED/
 │   ├── order_simulator.py          # Generator zamówień
 │   ├── data_analyzer.py            # Spark Structured Streaming
 │   ├── web_dashboard.py            # Dashboard Flask + WebSocket
-│   ├── test_data_generator.py      # Generator danych testowych
 │   └── templates/dashboard.html    # Interfejs web HTML/JS
 ├── system_demo.ipynb         # Notebook demonstracyjny Jupyter
 ├── logs/                      # Automatyczne logi kontenerów
@@ -320,10 +315,7 @@ ASEED/
 │   ├── order_simulator.log       # Logi generatora zamówień
 │   ├── data_analyzer.log         # Logi analizatora Spark
 │   └── dashboard.log             # Logi dashboard Flask
-├── test_aseed.py              # Testy jednostkowe systemu
 ├── requirements.txt           # Zależności Python
-├── requirements_dev.txt       # Zależności deweloperskie
-└── .env                       # Zmienne środowiskowe
 ```
 
 ## Funkcjonalność systemu
@@ -343,7 +335,7 @@ ASEED/
 ### API i interfejsy
 - **Dashboard Web** - http://localhost:5005 (Flask + WebSocket)
 - **Spark UI** - http://localhost:8080 (Monitoring klastra Spark)
-- **REST API** - `/api/analytics`, `/api/top-products`
+- **REST API** - patrz sekcja API poniżej
 - **Jupyter Demo** - `system_demo.ipynb` z kompletną demonstracją
 
 ## Komendy Docker i debugging
@@ -377,15 +369,9 @@ docker exec -it aseed-web-dashboard /bin/bash
 docker exec -it aseed-kafka kafka-topics --list --bootstrap-server localhost:9092
 ```
 
-### Testowanie i generowanie danych
+### Podgląd danych (generator działa automatycznie w kontenerze order-simulator)
 ```bash
-# Test systemu - 5 minut, 30 zamówień na minutę
-./docker-aseed.sh test 5 30
-
-# Generator danych testowych  
-docker exec -it aseed-order-simulator python3 test_data_generator.py --minutes 3 --rate 20
-
-# Sprawdzenie consumer Kafka
+# Sprawdzenie konsumentem Kafka (przegląd surowych wiadomości)
 docker exec -it aseed-kafka kafka-console-consumer --topic orders --from-beginning --bootstrap-server localhost:9092
 ```
 
@@ -495,16 +481,22 @@ docker system prune -a --volumes
 ./docker-aseed.sh install
 ```
 
-## Testy i walidacja
+## API (aktualne)
 
+Typ | Metoda | Endpoint | Opis
+----|--------|----------|-----
+Public | GET | `/api/status` | Podstawowe metryki (liczba zamówień, przychód, throughput)
+Public | GET | `/api/service-status` | Status wszystkich serwisów Docker
+Public | GET | `/api/dashboard_data` | Zbiorczy snapshot (produkty, kategorie, ostatnie zamówienia, metryki)
+Wewnętrzne (Spark) | POST | `/api/top_products` | Dane top produktów (push ze Spark)
+Wewnętrzne (Spark) | POST | `/api/categories` | Agregacje kategorii (push ze Spark)
+Wewnętrzne (Spark) | POST | `/api/raw_orders` | Ostatnie zamówienia (push batch ze Spark)
+
+Przykłady:
 ```bash
-# Testy jednostkowe
-docker exec -it aseed-order-simulator python3 test_aseed.py
-
-# Test kompletnego pipeline
-./docker-aseed.sh test 2 15  # 2 minuty, 15 zamówień/min
-
-# Walidacja API
-curl http://localhost:5005/api/analytics
-curl http://localhost:5005/api/top-products
+curl http://localhost:5005/api/status
+curl http://localhost:5005/api/service-status
+curl http://localhost:5005/api/dashboard_data
 ```
+
+Endpointy POST są wywoływane automatycznie przez moduł `data_analyzer.py` – nie należy ich manualnie odpytywać.
