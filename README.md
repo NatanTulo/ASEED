@@ -37,7 +37,7 @@ System symuluje sklep internetowy wysyłający zamówienia przez Kafka, a Spark 
 **aseed-order-simulator**
 - **Rola:** Generator realistycznych zamówień e-commerce
 - **Zadania:** Tworzenie zamówień testowych, wysyłanie do Kafka, symulacja ruchu handlowego
-- **Produkty:** 60 produktów w 6 kategoriach (Elektronika, Odzież, Książki, Dom, Sport, Uroda)
+- **Produkty:** 50 produktów w 6 kategoriach (Elektronika, Odzież, Książki, Dom, Sport, Uroda)
 - **Częstotliwość:** 3-8 sekund między zamówieniami
 
 **aseed-data-analyzer**
@@ -297,7 +297,6 @@ graph TB
     
     subgraph "Dokumentacja"
         RM[README.md<br/>Główna dokumentacja]
-        JN[system_demo.ipynb<br/>Jupyter Demo]  
         RT[requirements.txt<br/>Zależności]
     end
     
@@ -325,21 +324,14 @@ ASEED/
 ├── Dockerfile.python           # Obraz dla aplikacji Python
 ├── Dockerfile.spark            # Obraz Spark Master
 ├── Dockerfile.spark-app        # Obraz aplikacji analitycznych
+├── .env                        # Konfiguracja środowiska
 ├── src/
 │   ├── order_simulator.py          # Generator zamówień
 │   ├── data_analyzer.py            # Spark Structured Streaming
 │   ├── web_dashboard.py            # Dashboard Flask + WebSocket
 │   └── templates/dashboard.html    # Interfejs web HTML/JS
-├── system_demo.ipynb         # Notebook demonstracyjny Jupyter
-├── logs/                      # Automatyczne logi kontenerów
-│   ├── zookeeper.log             # Logi Zookeeper
-│   ├── kafka.log                 # Logi Kafka broker
-│   ├── spark-master.log          # Logi Spark Master
-│   ├── spark-worker.log          # Logi Spark Worker  
-│   ├── order_simulator.log       # Logi generatora zamówień
-│   ├── data_analyzer.log         # Logi analizatora Spark
-│   └── dashboard.log             # Logi dashboard Flask
 ├── requirements.txt           # Zależności Python
+└── README.md                  # Dokumentacja projektu
 ```
 
 ## Funkcjonalność systemu
@@ -360,7 +352,6 @@ ASEED/
 - **Dashboard Web** - http://localhost:5005 (Flask + WebSocket)
 - **Spark UI** - http://localhost:8080 (Monitoring klastra Spark)
 - **REST API** - patrz sekcja API poniżej
-- **Jupyter Demo** - `system_demo.ipynb` z kompletną demonstracją
 
 ## Komendy Docker i debugging
 
